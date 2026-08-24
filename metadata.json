@@ -1,0 +1,8 @@
+{
+  "name": "Remix Remix KF Mart Retail",
+  "description": "World-class luxury multi-vendor marketplace with instant search, pincode validation, live order timeline, 24h return window, vendor portal, delivery executive app, and admin dashboard.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

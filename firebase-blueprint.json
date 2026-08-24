@@ -1,0 +1,51 @@
+{
+  "collections": [
+    {
+      "name": "products",
+      "description": "Store all global products",
+      "schema": {
+        "id": "string",
+        "name": "string",
+        "category": "string"
+      },
+      "rules": ["read: true", "write: true"]
+    },
+    {
+      "name": "vendors",
+      "description": "Store all vendors",
+      "schema": {
+        "id": "string",
+        "name": "string"
+      },
+      "rules": ["read: true", "write: true"]
+    },
+    {
+      "name": "deliveryExecutives",
+      "description": "Store all delivery executives",
+      "schema": {
+        "id": "string",
+        "name": "string"
+      },
+      "rules": ["read: true", "write: true"]
+    },
+    {
+      "name": "orders",
+      "description": "Store all orders",
+      "schema": {
+        "id": "string",
+        "orderNumber": "string"
+      },
+      "rules": ["read: true", "write: true"]
+    },
+    {
+      "name": "auth_config",
+      "description": "Store application passwords config",
+      "schema": {
+        "passwords": "map",
+        "accountPasswordChangedAt": "map",
+        "passwordsLastUpdated": "number"
+      },
+      "rules": ["read: true", "write: true"]
+    }
+  ]
+}
