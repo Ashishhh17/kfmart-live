@@ -1,0 +1,65 @@
+{
+  "id": "in.kfmart.app",
+  "short_name": "KF MART",
+  "name": "KF MART Retail - kfmart.in",
+  "description": "KF MART Retail (kfmart.in) - Har Dukaan, Ek Platform with 24-Hour Express Delivery.",
+  "icons": [
+    {
+      "src": "/pwa-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/pwa-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/pwa-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "KF MART Mobile View"
+    },
+    {
+      "src": "/pwa-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "KF MART Store View"
+    }
+  ],
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone"],
+  "orientation": "portrait",
+  "theme_color": "#005723",
+  "background_color": "#005723",
+  "dir": "ltr",
+  "lang": "en-IN",
+  "iarc_rating_id": "e84b3350-17fe-421f-82ff-1a7337943003",
+  "categories": [
+    "shopping",
+    "business",
+    "lifestyle"
+  ],
+  "prefer_related_applications": false,
+  "related_applications": []
+}

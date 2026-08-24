@@ -1,0 +1,390 @@
+{
+  "products": [
+    {
+      "id": "p1",
+      "name": "Classic Forest Green Premium Cotton Crew T-Shirt",
+      "category": "Fashion",
+      "subCategory": "Men Fashion",
+      "brand": "KF Fashion",
+      "description": "100% combed organic cotton classic fit crew neck T-shirt. Soft, breathable, and pre-shrunk for maximum comfort.",
+      "images": [
+        "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=800&auto=format&fit=crop"
+      ],
+      "vendorId": "v1",
+      "vendorName": "Royal Threads India",
+      "vendorRating": 4.9,
+      "vendorPrice": 300,
+      "shippingCharge": 20,
+      "companyCharge": 79,
+      "sellingPrice": 399,
+      "mrp": 529,
+      "rating": 4.8,
+      "reviewsCount": 184,
+      "stock": 50,
+      "specifications": {
+        "Fabric": "100% Premium Cotton",
+        "Fit": "Regular Fit",
+        "Care": "Machine Wash Cold"
+      },
+      "isFlashSale": true,
+      "isBestSeller": true,
+      "discountPercentage": 25,
+      "pincodeAvailability": [
+        "229413",
+        "230201"
+      ],
+      "estimatedDeliveryTime": "24 Hours Express"
+    },
+    {
+      "id": "p2",
+      "name": "Apex Pro Black Dial Luxury Wristwatch",
+      "category": "Electronics",
+      "subCategory": "Wearables",
+      "brand": "Apex Tech",
+      "description": "Premium black dial stainless steel casing with minimalist hour markers and Japanese quartz movement.",
+      "images": [
+        "https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=800&auto=format&fit=crop"
+      ],
+      "vendorId": "v2",
+      "vendorName": "Apex Electronics Labs",
+      "vendorRating": 4.9,
+      "vendorPrice": 1500,
+      "shippingCharge": 20,
+      "companyCharge": 479,
+      "sellingPrice": 1999,
+      "mrp": 2499,
+      "rating": 4.9,
+      "reviewsCount": 312,
+      "stock": 35,
+      "specifications": {
+        "Display": "Scratch-resistant Sapphire Glass",
+        "Strap": "Black Premium Leather",
+        "Water Resistance": "50m Waterproof"
+      },
+      "isFlashSale": true,
+      "isBestSeller": true,
+      "discountPercentage": 20,
+      "pincodeAvailability": [
+        "229413",
+        "230201"
+      ],
+      "estimatedDeliveryTime": "24 Hours Express"
+    },
+    {
+      "id": "p3",
+      "name": "Luxury Rose Pink Leather Top-Handle Tote Handbag",
+      "category": "Accessories",
+      "subCategory": "Bags",
+      "brand": "Luxe Craft",
+      "description": "Crafted from premium water-resistant vegan leather. Features spacious main compartment, gold metal zippers, and detachable shoulder strap.",
+      "images": [
+        "https://images.unsplash.com/photo-1584917865442-de89df76afd3?q=80&w=800&auto=format&fit=crop"
+      ],
+      "vendorId": "v3",
+      "vendorName": "Lalgopalganj Handbag & Accessories",
+      "vendorRating": 4.8,
+      "vendorPrice": 900,
+      "shippingCharge": 20,
+      "companyCharge": 379,
+      "sellingPrice": 1299,
+      "mrp": 1855,
+      "rating": 4.8,
+      "reviewsCount": 145,
+      "stock": 20,
+      "specifications": {
+        "Material": "Vegan Premium Leather",
+        "Closure": "Gold Plated Zipper",
+        "Pockets": "3 Inner Dividers + 1 Back Zipper"
+      },
+      "isFlashSale": true,
+      "isBestSeller": true,
+      "discountPercentage": 30,
+      "pincodeAvailability": [
+        "229413",
+        "230201"
+      ],
+      "estimatedDeliveryTime": "24 Hours Express"
+    },
+    {
+      "id": "p4",
+      "name": "Apex Sonic Wireless Noise Cancelling Over-Ear Headphones",
+      "category": "Electronics",
+      "subCategory": "Audio",
+      "brand": "Apex Sonic",
+      "description": "Ultra-clear deep bass, 40mm dynamic drivers, soft memory foam cushion earcups, 40-hour continuous playback.",
+      "images": [
+        "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=800&auto=format&fit=crop"
+      ],
+      "vendorId": "v2",
+      "vendorName": "Apex Electronics Labs",
+      "vendorRating": 4.9,
+      "vendorPrice": 1200,
+      "shippingCharge": 20,
+      "companyCharge": 479,
+      "sellingPrice": 1699,
+      "mrp": 1999,
+      "rating": 4.9,
+      "reviewsCount": 280,
+      "stock": 40,
+      "specifications": {
+        "Driver": "40mm Titanium Drivers",
+        "Playtime": "40 Hours Non-stop",
+        "Mic": "Dual Noise-Isolating Mic"
+      },
+      "isFlashSale": true,
+      "isBestSeller": true,
+      "discountPercentage": 15,
+      "pincodeAvailability": [
+        "229413",
+        "230201"
+      ],
+      "estimatedDeliveryTime": "24 Hours Express"
+    },
+    {
+      "id": "p5",
+      "name": "Pro-Glide Royal Blue Lightweight Mesh Sports Shoes",
+      "category": "Shoes",
+      "subCategory": "Footwear",
+      "brand": "AeroMotion",
+      "description": "Ergonomic air-cushioned running sneakers with high-traction rubber sole and ultra-breathable knit upper mesh.",
+      "images": [
+        "https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=800&auto=format&fit=crop"
+      ],
+      "vendorId": "v3",
+      "vendorName": "Lalgopalganj Handbag & Accessories",
+      "vendorRating": 4.8,
+      "vendorPrice": 800,
+      "shippingCharge": 20,
+      "companyCharge": 379,
+      "sellingPrice": 1199,
+      "mrp": 1599,
+      "rating": 4.7,
+      "reviewsCount": 98,
+      "stock": 30,
+      "specifications": {
+        "Sole": "Anti-skid EVA Rubber",
+        "Upper": "Jacquard Knit Breathable Fabric",
+        "Weight": "220g Per Shoe"
+      },
+      "isFlashSale": true,
+      "isBestSeller": true,
+      "discountPercentage": 25,
+      "pincodeAvailability": [
+        "229413",
+        "230201"
+      ],
+      "estimatedDeliveryTime": "24 Hours Express"
+    },
+    {
+      "id": "p6",
+      "name": "Hydro-Flask 1000ml Matte Forest Green Insulated Bottle",
+      "category": "Kitchen",
+      "subCategory": "Home",
+      "brand": "EcoHydro",
+      "description": "Double-wall vacuum insulated 18/8 stainless steel bottle. Keeps drinks cold for 24 hours or hot for 12 hours. Sweat-free leakproof cap.",
+      "images": [
+        "https://images.unsplash.com/photo-1602143407151-7111542de6e8?q=80&w=800&auto=format&fit=crop"
+      ],
+      "vendorId": "v1",
+      "vendorName": "Royal Threads India",
+      "vendorRating": 4.9,
+      "vendorPrice": 350,
+      "shippingCharge": 20,
+      "companyCharge": 129,
+      "sellingPrice": 499,
+      "mrp": 624,
+      "rating": 4.8,
+      "reviewsCount": 162,
+      "stock": 60,
+      "specifications": {
+        "Capacity": "1000 ml",
+        "Material": "BPA-Free 18/8 Food Grade Stainless Steel",
+        "Insulation": "Vacuum Hot & Cold 24 Hours"
+      },
+      "isFlashSale": true,
+      "isBestSeller": true,
+      "discountPercentage": 20,
+      "pincodeAvailability": [
+        "229413",
+        "230201"
+      ],
+      "estimatedDeliveryTime": "24 Hours Express"
+    }
+  ],
+  "vendors": [
+    {
+      "id": "v1",
+      "businessName": "Royal Threads India",
+      "ownerName": "Vikramaditya Sharma",
+      "phone": "+91 98765 43210",
+      "email": "contact@royalthreads.in",
+      "gstNumber": "09AAACR1234F1Z5",
+      "panNumber": "ABCDE1234F",
+      "aadhaarNumber": "1234-5678-9012",
+      "bankDetails": {
+        "accountNumber": "91802003884812",
+        "ifscCode": "HDFC0000123",
+        "bankName": "HDFC Bank",
+        "accountHolder": "Royal Threads India"
+      },
+      "address": "Plot 42, Main Market, Lalgopalganj, UP",
+      "companyProfile": "Manufacturers of premium cotton t-shirts, apparel, and fashion accessories.",
+      "status": "Approved",
+      "rating": 4.9,
+      "joinedDate": "2025-01-15",
+      "totalSales": 485000,
+      "walletBalance": 64200,
+      "pendingEscrow": 18500
+    },
+    {
+      "id": "v2",
+      "businessName": "Apex Electronics Labs",
+      "ownerName": "Ananya Gupta",
+      "phone": "+91 91234 56789",
+      "email": "support@apexelectronics.com",
+      "gstNumber": "09BHXPG9876K1Z9",
+      "panNumber": "BHXPG9876K",
+      "aadhaarNumber": "9876-5432-1098",
+      "bankDetails": {
+        "accountNumber": "50100239102931",
+        "ifscCode": "ICIC0000456",
+        "bankName": "ICICI Bank",
+        "accountHolder": "Apex Electronics Labs"
+      },
+      "address": "Main Bazaar Road, Lalgopalganj, UP",
+      "companyProfile": "Authorized regional distributor for high-fidelity audio equipment, smartwatches, and gadgets.",
+      "status": "Approved",
+      "rating": 4.9,
+      "joinedDate": "2025-02-01",
+      "totalSales": 1240000,
+      "walletBalance": 125000,
+      "pendingEscrow": 45000
+    },
+    {
+      "id": "v3",
+      "businessName": "Lalgopalganj Handbag & Accessories",
+      "ownerName": "Ramesh Soni",
+      "phone": "+91 99887 76655",
+      "email": "info@lalgopalganjstore.in",
+      "gstNumber": "",
+      "panNumber": "SONIR5544P",
+      "aadhaarNumber": "4567-8901-2345",
+      "bankDetails": {
+        "accountNumber": "0012100098231",
+        "ifscCode": "SBIN0001122",
+        "bankName": "State Bank of India",
+        "accountHolder": "Ramesh Soni"
+      },
+      "address": "Station Road, Lalgopalganj, UP",
+      "companyProfile": "Handcrafted leather bags, footwear, and lifestyle essentials.",
+      "status": "Approved",
+      "rating": 4.8,
+      "joinedDate": "2025-03-10",
+      "totalSales": 210000,
+      "walletBalance": 32000,
+      "pendingEscrow": 8400
+    }
+  ],
+  "deliveryExecutives": [
+    { 
+      "id": "del-1", 
+      "name": "Rajesh Kumar (Express Agent)", 
+      "phone": "+91 98111 22233", 
+      "email": "rajesh.delivery@kfmart.in",
+      "vehicleType": "Bike / Motorcycle",
+      "vehicleNumber": "UP-33-AB-1234",
+      "assignedZone": "Pincode 229413 (Lalgopalganj Hub)",
+      "assignedOrdersCount": 0, 
+      "completedDeliveries": 428,
+      "totalEarnings": 21400,
+      "joinedDate": "2025-01-10",
+      "status": "Active" 
+    },
+    { 
+      "id": "del-2", 
+      "name": "Amit Verma (Lalgopalganj Rider)", 
+      "phone": "+91 98222 33344", 
+      "email": "amit.rider@kfmart.in",
+      "vehicleType": "Scooter",
+      "vehicleNumber": "UP-33-CD-5678",
+      "assignedZone": "Pincode 229413 (Station Road)",
+      "assignedOrdersCount": 0, 
+      "completedDeliveries": 312,
+      "totalEarnings": 15600,
+      "joinedDate": "2025-02-14",
+      "status": "On Duty" 
+    },
+    { 
+      "id": "del-3", 
+      "name": "Mohd. Imran (Kunda Express Hub)", 
+      "phone": "+91 98333 44455", 
+      "email": "imran.delivery@kfmart.in",
+      "vehicleType": "Bike / Motorcycle",
+      "vehicleNumber": "UP-72-EF-9012",
+      "assignedZone": "Pincode 230201 (Kunda)",
+      "assignedOrdersCount": 0, 
+      "completedDeliveries": 289,
+      "totalEarnings": 14450,
+      "joinedDate": "2025-03-01",
+      "status": "Active" 
+    },
+    { 
+      "id": "del-4", 
+      "name": "Suresh Patel (Electric Cargo)", 
+      "phone": "+91 98444 55566", 
+      "email": "suresh.cargo@kfmart.in",
+      "vehicleType": "E-Rickshaw",
+      "vehicleNumber": "UP-33-ER-4411",
+      "assignedZone": "Pincode 229413 (Central Market)",
+      "assignedOrdersCount": 0, 
+      "completedDeliveries": 516,
+      "totalEarnings": 25800,
+      "joinedDate": "2024-11-20",
+      "status": "On Duty" 
+    },
+    { 
+      "id": "del-5", 
+      "name": "Vikas Tiwari (Fast Route Rider)", 
+      "phone": "+91 98555 66677", 
+      "email": "vikas.rider@kfmart.in",
+      "vehicleType": "Bike / Motorcycle",
+      "vehicleNumber": "UP-33-VK-7788",
+      "assignedZone": "Pincode 229413 (Highway Sector)",
+      "assignedOrdersCount": 0, 
+      "completedDeliveries": 195,
+      "totalEarnings": 9750,
+      "joinedDate": "2025-04-05",
+      "status": "Active" 
+    }
+  ],
+  "orders": [],
+  "passwords": {
+    "customer": "customer123",
+    "customer@kfmart.in": "customer123",
+    "vendor": "vendor123",
+    "vendor@kfmart.in": "vendor123",
+    "admin": "admin123",
+    "admin@kfmart.in": "admin123",
+    "delivery": "delivery123",
+    "delivery@kfmart.in": "delivery123"
+  },
+  "coupons": [
+    {
+      "code": "KFMART10",
+      "discountType": "percentage",
+      "value": 10,
+      "minOrderValue": 499,
+      "description": "Get extra 10% instant discount on orders above ₹499.",
+      "expiresAt": "2026-12-31"
+    },
+    {
+      "code": "FIRST10",
+      "discountType": "percentage",
+      "value": 15,
+      "minOrderValue": 299,
+      "description": "Welcome Offer! 15% off on your first order at KF Mart Retail.",
+      "expiresAt": "2026-12-31"
+    }
+  ],
+  "lastUpdated": 1787127000000
+}
