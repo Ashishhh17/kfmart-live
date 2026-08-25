@@ -40,6 +40,9 @@ let serverDb: {
   deliveryExecutives?: any[];
   orders?: any[];
   passwords?: Record<string, string>;
+  accountPasswordChangedAt?: Record<string, number>;
+  passwordsLastUpdated?: number;
+  passwordVersion?: number;
   coupons?: any[];
   lastUpdated?: number;
 } = {
@@ -49,6 +52,8 @@ let serverDb: {
   orders: [],
   passwords: {},
   accountPasswordChangedAt: {},
+  passwordsLastUpdated: Date.now(),
+  passwordVersion: 1,
   coupons: [],
   lastUpdated: 0
 };

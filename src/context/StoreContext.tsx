@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { subscribeToGlobalState } from '../lib/db';
+import { subscribeToGlobalState, updateGlobalState } from '../lib/db';
 import { 
   Product, 
   Vendor, 
@@ -151,9 +151,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [pincode, setPincode] = useState<string>('229413');
   const [pincodeError, setPincodeError] = useState<string | null>(null);
 
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
 
-  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>(INITIAL_VENDORS);
 
   const [cart, setCart] = useState<CartItem[]>(() => {
     const saved = localStorage.getItem('kfmart_cart');
@@ -182,7 +182,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const [orders, setOrders] = useState<Order[]>([]);
 
-  const [deliveryExecutives, setDeliveryExecutives] = useState<DeliveryExecutive[]>([]);
+  const [deliveryExecutives, setDeliveryExecutives] = useState<DeliveryExecutive[]>(MOCK_DELIVERY_EXECUTIVES);
 
   const [notifications, setNotifications] = useState<NotificationItem[]>([
     {
@@ -249,17 +249,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const isInitialFetchDoneRef = useRef<boolean>(false);
 
   // ==================== CROSS-DEVICE REAL-TIME SYNC ====================
-  // Fetch state on startup and periodically check for genuine remote updates without thrashing UI
+  // Fetch state on startup and listen for Firestore updates without thrashing UI
   useEffect(() => {
     let isMounted = true;
-    const unsubscribe = subscribeToGlobalState((data) => {
+
+    const applyIncomingData = (data: any) => {
       if (!isMounted || !data) return;
       
       const serverUpdated = data.lastUpdated || 0;
       
       // Only update local state if server has newer data or if this is the initial load
-      if (!isInitialFetchDoneRef.current || serverUpdated > lastSyncTimeRef.current) {
-        lastSyncTimeRef.current = serverUpdated;
+      if (!isInitialFetchDoneRef.current || serverUpdated >= lastSyncTimeRef.current) {
+        lastSyncTimeRef.current = Math.max(serverUpdated, lastSyncTimeRef.current);
         isInitialFetchDoneRef.current = true;
 
         const serverProducts = data.products;
@@ -271,25 +272,25 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         let needsInitialSeed = false;
         let seedData: any = {};
 
-        if (serverProducts && serverProducts.length > 0) {
+        if (Array.isArray(serverProducts) && serverProducts.length > 0) {
           setProducts(serverProducts);
-        } else {
+        } else if (!serverProducts) {
           needsInitialSeed = true;
           seedData.products = INITIAL_PRODUCTS;
           setProducts(INITIAL_PRODUCTS);
         }
         
-        if (serverVendors && serverVendors.length > 0) {
+        if (Array.isArray(serverVendors) && serverVendors.length > 0) {
           setVendors(serverVendors);
-        } else {
+        } else if (!serverVendors) {
           needsInitialSeed = true;
           seedData.vendors = INITIAL_VENDORS;
           setVendors(INITIAL_VENDORS);
         }
         
-        if (serverDelivery && serverDelivery.length > 0) {
+        if (Array.isArray(serverDelivery) && serverDelivery.length > 0) {
           setDeliveryExecutives(serverDelivery);
-        } else {
+        } else if (!serverDelivery) {
           needsInitialSeed = true;
           seedData.deliveryExecutives = MOCK_DELIVERY_EXECUTIVES;
           setDeliveryExecutives(MOCK_DELIVERY_EXECUTIVES);
@@ -297,8 +298,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         if (Array.isArray(serverOrders) && serverOrders.length > 0) {
           setOrders(serverOrders);
-        } else {
-          setOrders([]);
         }
 
         if (needsInitialSeed) {
@@ -331,6 +330,23 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             return currentSession;
           });
         }
+      }
+    };
+
+    // 1. Initial immediate API fetch
+    fetch('/api/state')
+      .then(res => res.json())
+      .then(resData => {
+        if (resData.success && resData.data) {
+          applyIncomingData(resData.data);
+        }
+      })
+      .catch(() => {});
+
+    // 2. Real-time Firestore snapshot listener
+    const unsubscribe = subscribeToGlobalState((data) => {
+      if (data) {
+        applyIncomingData(data);
       }
     });
 

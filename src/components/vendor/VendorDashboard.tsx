@@ -178,30 +178,73 @@ export const VendorDashboard: React.FC = () => {
 
   const activeVendor = currentVendor || vendors.find(v => v.status === 'Approved') || vendors[0];
 
-  // Helper to handle multiple image file upload via FileReader
-  const processFiles = (files: FileList | null) => {
-    if (!files || files.length === 0) return;
-
-    Array.from(files).forEach(file => {
-      if (!file.type.startsWith('image/')) {
-        setUploadFeedback('Please select valid image files (JPG, PNG, WebP).');
-        return;
-      }
-
+  // Helper to handle multiple image file upload with lightweight Canvas Compression
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
       const reader = new FileReader();
       reader.onload = (e) => {
-        const result = e.target?.result as string;
-        if (result) {
-          setUploadedImages(prev => {
-            if (prev.includes(result)) return prev;
-            return [...prev, result];
-          });
-          setUploadFeedback('Image uploaded successfully!');
-          setTimeout(() => setUploadFeedback(null), 2500);
-        }
+        img.src = e.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const maxDim = 800;
+          let width = img.width;
+          let height = img.height;
+          if (width > height) {
+            if (width > maxDim) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            }
+          } else {
+            if (height > maxDim) {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressed = canvas.toDataURL('image/jpeg', 0.8);
+            resolve(compressed);
+          } else {
+            resolve(img.src);
+          }
+        };
+        img.onerror = () => resolve(img.src);
       };
+      reader.onerror = () => resolve('');
       reader.readAsDataURL(file);
     });
+  };
+
+  const processFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    setUploadFeedback('Optimizing and uploading photo...');
+    const fileArray = Array.from(files);
+
+    for (const file of fileArray) {
+      if (!file.type.startsWith('image/')) {
+        setUploadFeedback('Please select valid image files (JPG, PNG, WebP).');
+        continue;
+      }
+
+      try {
+        const compressedBase64 = await compressImage(file);
+        if (compressedBase64) {
+          setUploadedImages(prev => {
+            if (prev.includes(compressedBase64)) return prev;
+            return [compressedBase64, ...prev];
+          });
+          setUploadFeedback('Photo compressed & ready!');
+          setTimeout(() => setUploadFeedback(null), 2500);
+        }
+      } catch (err) {
+        console.error('Image compression error:', err);
+      }
+    }
   };
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -293,7 +336,24 @@ export const VendorDashboard: React.FC = () => {
     );
   }
 
-  const vendorProducts = products.filter(p => p.vendorId === activeVendor.id || p.vendorName === activeVendor.businessName);
+  const [catalogFilter, setCatalogFilter] = useState<'my' | 'all'>('my');
+
+  const vendorProducts = products.filter(p => {
+    if (!activeVendor) return false;
+    const vId = (activeVendor.id || '').trim().toLowerCase();
+    const vName = (activeVendor.businessName || '').trim().toLowerCase();
+    const pVendorId = (p.vendorId || '').trim().toLowerCase();
+    const pVendorName = (p.vendorName || '').trim().toLowerCase();
+
+    return (
+      (pVendorId && vId && pVendorId === vId) ||
+      (pVendorName && vName && pVendorName === vName) ||
+      p.vendorId === activeVendor.id ||
+      p.vendorName === activeVendor.businessName
+    );
+  });
+
+  const displayedCatalog = catalogFilter === 'my' ? vendorProducts : products;
 
   const handleAddProductSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -305,24 +365,24 @@ export const VendorDashboard: React.FC = () => {
 
     const isFashionOrShoes = ['Men', 'Women', 'Kids', 'Fashion', 'Shoes'].includes(category);
 
-    addProduct({
+    const created = addProduct({
       name,
       category,
-      brand,
+      brand: brand || activeVendor.businessName,
       description: description || `Premium ${name} by ${activeVendor.businessName}. Guaranteed authentic craftsmanship delivered in 24 hours.`,
       images: finalImages,
       availableSizes: isFashionOrShoes ? selectedSizes : undefined,
       vendorId: activeVendor.id,
       vendorName: activeVendor.businessName,
-      vendorRating: activeVendor.rating,
+      vendorRating: activeVendor.rating || 4.9,
       vendorPrice: Number(vendorPrice),
       shippingCharge: Number(shippingCharge),
       companyCharge: Number(companyCharge),
       mrp: Number(mrp),
       rating: 4.9,
       reviewsCount: 1,
-      stock: Number(stock),
-      estimatedDeliveryTime,
+      stock: Number(stock) || 50,
+      estimatedDeliveryTime: estimatedDeliveryTime || '24 Hours Express',
       specifications: {
         'Material': 'Handpicked Quality',
         'Vendor Code': activeVendor.id,
@@ -332,6 +392,9 @@ export const VendorDashboard: React.FC = () => {
 
     setName('');
     setDescription('');
+    setCustomImageUrl('');
+    setUploadedImages(['https://images.unsplash.com/photo-1617137984095-74e4e5e3613f?q=80&w=800&auto=format&fit=crop']);
+    setCatalogFilter('my');
     setActiveTab('products');
   };
 
@@ -453,8 +516,35 @@ export const VendorDashboard: React.FC = () => {
       {/* PRODUCTS MANAGER */}
       {activeTab === 'products' && (
         <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="text-base font-extrabold text-slate-900 dark:text-white">Vendor Catalog ({vendorProducts.length})</h2>
+          <div className="flex flex-wrap justify-between items-center gap-3">
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-extrabold text-slate-900 dark:text-white">
+                Vendor Catalog ({displayedCatalog.length})
+              </h2>
+              <div className="inline-flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-[11px] font-bold">
+                <button
+                  onClick={() => setCatalogFilter('my')}
+                  className={`px-3 py-1 rounded-lg transition-all ${
+                    catalogFilter === 'my'
+                      ? 'bg-[#005723] text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  My Products ({vendorProducts.length})
+                </button>
+                <button
+                  onClick={() => setCatalogFilter('all')}
+                  className={`px-3 py-1 rounded-lg transition-all ${
+                    catalogFilter === 'all'
+                      ? 'bg-[#005723] text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  All Products ({products.length})
+                </button>
+              </div>
+            </div>
+
             <button
               onClick={() => setActiveTab('add-product')}
               className="bg-[#005723] hover:bg-[#00401A] text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-sm"
@@ -463,38 +553,56 @@ export const VendorDashboard: React.FC = () => {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {vendorProducts.map(p => (
-              <div key={p.id} className="bg-white dark:bg-slate-800 p-4 rounded-3xl border border-slate-200 dark:border-slate-700 space-y-2 relative overflow-hidden group">
-                <div className="relative h-40 rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-700">
-                  <img src={p.images[0]} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                  {p.images.length > 1 && (
-                    <span className="absolute bottom-2 right-2 bg-black/70 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 backdrop-blur-xs">
-                      <Layers className="w-3 h-3" /> {p.images.length} Photos
+          {displayedCatalog.length === 0 ? (
+            <div className="p-12 text-center bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-xs space-y-3">
+              <Package className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto" />
+              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                {catalogFilter === 'my' ? 'No products listed under this vendor account yet' : 'No products found in marketplace'}
+              </h3>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
+                Start listing your items with custom vendor pricing, fast 24-hour express delivery, and high-resolution photo uploads.
+              </p>
+              <button
+                onClick={() => setActiveTab('add-product')}
+                className="mt-2 bg-[#005723] hover:bg-[#00401A] text-white px-5 py-2.5 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-sm"
+              >
+                <Plus className="w-4 h-4" /> Upload First Product Now
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              {displayedCatalog.map(p => (
+                <div key={p.id} className="bg-white dark:bg-slate-800 p-4 rounded-3xl border border-slate-200 dark:border-slate-700 space-y-2 relative overflow-hidden group">
+                  <div className="relative h-40 rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-700">
+                    <img src={p.images[0]} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                    {p.images.length > 1 && (
+                      <span className="absolute bottom-2 right-2 bg-black/70 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 backdrop-blur-xs">
+                        <Layers className="w-3 h-3" /> {p.images.length} Photos
+                      </span>
+                    )}
+                    <span className="absolute top-2 left-2 bg-[#005723] text-white text-[10px] font-extrabold px-2 py-0.5 rounded-md">
+                      {p.category}
                     </span>
-                  )}
-                  <span className="absolute top-2 left-2 bg-[#005723] text-white text-[10px] font-extrabold px-2 py-0.5 rounded-md">
-                    {p.category}
-                  </span>
-                </div>
-                <h4 className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1">{p.name}</h4>
-                <div className="p-2.5 bg-slate-50 dark:bg-slate-700/50 rounded-xl text-[11px] space-y-1">
-                  <div className="flex justify-between text-slate-500"><span>Vendor Price:</span> <strong>₹{p.vendorPrice}</strong></div>
-                  <div className="flex justify-between text-slate-500"><span>Delivery Fee:</span> <strong>₹{p.shippingCharge}</strong></div>
-                  <div className="flex justify-between text-slate-500"><span>KF Fee:</span> <strong>₹{p.companyCharge}</strong></div>
-                  <div className="flex justify-between text-xs font-extrabold text-[#005723] dark:text-emerald-400 border-t border-slate-200 dark:border-slate-600 pt-1">
-                    <span>Selling Price:</span> <span>₹{p.sellingPrice}</span>
                   </div>
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1">{p.name}</h4>
+                  <div className="p-2.5 bg-slate-50 dark:bg-slate-700/50 rounded-xl text-[11px] space-y-1">
+                    <div className="flex justify-between text-slate-500"><span>Vendor Price:</span> <strong>₹{p.vendorPrice}</strong></div>
+                    <div className="flex justify-between text-slate-500"><span>Delivery Fee:</span> <strong>₹{p.shippingCharge}</strong></div>
+                    <div className="flex justify-between text-slate-500"><span>KF Fee:</span> <strong>₹{p.companyCharge}</strong></div>
+                    <div className="flex justify-between text-xs font-extrabold text-[#005723] dark:text-emerald-400 border-t border-slate-200 dark:border-slate-600 pt-1">
+                      <span>Selling Price:</span> <span>₹{p.sellingPrice}</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => deleteProduct(p.id)}
+                    className="w-full text-center text-xs font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 py-1.5 rounded-xl transition-colors cursor-pointer"
+                  >
+                    Delete Item
+                  </button>
                 </div>
-                <button
-                  onClick={() => deleteProduct(p.id)}
-                  className="w-full text-center text-xs font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 py-1.5 rounded-xl transition-colors cursor-pointer"
-                >
-                  Delete Item
-                </button>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
