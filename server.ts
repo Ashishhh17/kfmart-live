@@ -3,7 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, doc, onSnapshot, setDoc, getDoc } from 'firebase/firestore';
+import { getFirestore, doc, onSnapshot, setDoc, getDoc, collection, getDocs, deleteDoc } from 'firebase/firestore';
 
 const firebaseConfig = {
   projectId: "infinite-jetty-kr7h4",
@@ -58,12 +58,17 @@ let serverDb: {
   lastUpdated: 0
 };
 
-// Real-time Firestore sync
+// Real-time Firestore sync & orders collection loader
 async function loadDatabase() {
   try {
+    // 1. Load global state (products, vendors, delivery, passwords)
     const snap = await getDoc(globalStateRef);
     if (snap.exists()) {
-      serverDb = snap.data() as any;
+      const gData = snap.data() as any;
+      serverDb = {
+        ...serverDb,
+        ...gData
+      };
       console.log('Successfully loaded persistent marketplace database from Firestore.');
     } else {
       serverDb = {
@@ -87,25 +92,105 @@ async function loadDatabase() {
         coupons: [],
         lastUpdated: Date.now()
       };
-      await setDoc(globalStateRef, serverDb);
+      await setDoc(globalStateRef, { ...serverDb, orders: [] });
+    }
+
+    // 2. Load dedicated products collection (bypasses 1MB limit & syncs across all devices)
+    try {
+      const productsSnap = await getDocs(collection(firestoreDb, 'products'));
+      if (!productsSnap.empty) {
+        const loadedProducts: any[] = [];
+        productsSnap.forEach(s => loadedProducts.push(s.data()));
+        serverDb.products = loadedProducts;
+        console.log(`Successfully loaded ${loadedProducts.length} products from Firestore products collection.`);
+      }
+    } catch (prodErr) {
+      console.error('Error loading Firestore products collection:', prodErr);
+    }
+
+    // 3. Load dedicated orders collection (bypasses 1MB limit & syncs across all devices)
+    try {
+      const ordersSnap = await getDocs(collection(firestoreDb, 'orders'));
+      const loadedOrders: any[] = [];
+      ordersSnap.forEach(s => loadedOrders.push(s.data()));
+      loadedOrders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      serverDb.orders = loadedOrders;
+      console.log(`Successfully loaded ${loadedOrders.length} orders from Firestore orders collection.`);
+    } catch (orderErr) {
+      console.error('Error loading Firestore orders collection:', orderErr);
+      // Try loading from local disk file if available
+      if (fs.existsSync(DB_FILE)) {
+        try {
+          const fileData = JSON.parse(fs.readFileSync(DB_FILE, 'utf-8'));
+          if (Array.isArray(fileData.orders)) {
+            serverDb.orders = fileData.orders;
+          }
+        } catch (e) {}
+      }
     }
     
-    // Listen for changes from other containers or clients
+    // 4. Listen for global state changes from other containers or clients
     onSnapshot(globalStateRef, (docSnap) => {
       if (docSnap.exists()) {
-        serverDb = docSnap.data() as any;
+        const d = docSnap.data() as any;
+        serverDb.vendors = d.vendors || serverDb.vendors;
+        serverDb.deliveryExecutives = d.deliveryExecutives || serverDb.deliveryExecutives;
+        serverDb.passwords = d.passwords || serverDb.passwords;
+        serverDb.passwordsLastUpdated = d.passwordsLastUpdated || serverDb.passwordsLastUpdated;
+        serverDb.passwordVersion = d.passwordVersion || serverDb.passwordVersion;
+        serverDb.accountPasswordChangedAt = d.accountPasswordChangedAt || serverDb.accountPasswordChangedAt;
+        serverDb.coupons = d.coupons || serverDb.coupons;
+        serverDb.lastUpdated = d.lastUpdated || Date.now();
       }
     });
+
+    // 5. Listen for real-time products additions & updates across all devices
+    onSnapshot(collection(firestoreDb, 'products'), (colSnap) => {
+      if (!colSnap.empty) {
+        const liveProducts: any[] = [];
+        colSnap.forEach(s => liveProducts.push(s.data()));
+        serverDb.products = liveProducts;
+      }
+    });
+
+    // 6. Listen for real-time order creations & updates across all devices
+    onSnapshot(collection(firestoreDb, 'orders'), (colSnap) => {
+      const liveOrders: any[] = [];
+      colSnap.forEach(s => liveOrders.push(s.data()));
+      liveOrders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      serverDb.orders = liveOrders;
+    });
+
   } catch (err) {
     console.error('Error loading Firestore database:', err);
   }
 }
 
-// Save database to Firestore
+// Save database to disk and Firestore
 function saveDatabase() {
   try {
     serverDb.lastUpdated = Date.now();
-    setDoc(globalStateRef, serverDb).catch(err => console.error('Firestore save error:', err));
+    // 1. Save snapshot to local disk
+    try {
+      fs.writeFileSync(DB_FILE, JSON.stringify(serverDb, null, 2), 'utf-8');
+    } catch (diskErr) {
+      console.warn('Disk save warning:', diskErr);
+    }
+
+    // 2. Save global metadata to Firestore WITHOUT heavy products & orders arrays (to prevent 1MB overflow)
+    const statePayload = {
+      vendors: serverDb.vendors || [],
+      deliveryExecutives: serverDb.deliveryExecutives || [],
+      passwords: serverDb.passwords || {},
+      passwordsLastUpdated: serverDb.passwordsLastUpdated || Date.now(),
+      passwordVersion: serverDb.passwordVersion || 1,
+      accountPasswordChangedAt: serverDb.accountPasswordChangedAt || {},
+      coupons: serverDb.coupons || [],
+      lastUpdated: Date.now(),
+      products: [], // Products stored in dedicated collection products/{id}
+      orders: []    // Orders stored in dedicated collection orders/{id}
+    };
+    setDoc(globalStateRef, statePayload).catch(err => console.error('Firestore save error:', err));
   } catch (err) {
     console.error('Error saving Firestore:', err);
   }
@@ -150,6 +235,9 @@ app.post('/api/sync', (req, res) => {
   
   if (Array.isArray(products) && products.length > 0) {
     serverDb.products = products;
+    products.forEach(p => {
+      setDoc(doc(firestoreDb, 'products', p.id), p).catch(() => {});
+    });
   }
   if (Array.isArray(vendors) && vendors.length > 0) {
     serverDb.vendors = vendors;
@@ -176,8 +264,12 @@ app.post('/api/products/add', (req, res) => {
   }
 
   if (!serverDb.products) serverDb.products = [];
-  serverDb.products = [newProduct, ...serverDb.products];
+  serverDb.products = [newProduct, ...serverDb.products.filter(p => p.id !== newProduct.id)];
   saveDatabase();
+
+  setDoc(doc(firestoreDb, 'products', newProduct.id), newProduct).catch(err => {
+    console.warn('Firestore product add warning:', err);
+  });
 
   res.json({ success: true, product: newProduct, total: serverDb.products.length });
 });
@@ -188,6 +280,9 @@ app.post('/api/products/delete', (req, res) => {
     serverDb.products = serverDb.products.filter(p => p.id !== id);
     saveDatabase();
   }
+  deleteDoc(doc(firestoreDb, 'products', id)).catch(err => {
+    console.warn('Firestore product delete warning:', err);
+  });
   res.json({ success: true, message: 'Product deleted from global catalog' });
 });
 
@@ -263,27 +358,61 @@ app.post('/api/delivery/delete', (req, res) => {
 });
 
 // 7. Orders APIs
-app.post('/api/orders/create', (req, res) => {
+app.get('/api/orders', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  try {
+    const ordersSnap = await getDocs(collection(firestoreDb, 'orders'));
+    const list: any[] = [];
+    ordersSnap.forEach(s => list.push(s.data()));
+    list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    serverDb.orders = list;
+    return res.json({ success: true, orders: list });
+  } catch (err) {
+    return res.json({ success: true, orders: serverDb.orders || [] });
+  }
+});
+
+app.post('/api/orders/create', async (req, res) => {
   const newOrder = req.body;
   if (!newOrder || !newOrder.id) {
     return res.status(400).json({ success: false, message: 'Invalid order data' });
   }
 
   if (!serverDb.orders) serverDb.orders = [];
-  serverDb.orders = [newOrder, ...serverDb.orders];
+  // Ensure no duplicate
+  serverDb.orders = [newOrder, ...serverDb.orders.filter(o => o.id !== newOrder.id)];
+
+  // 1. Persist directly to dedicated orders collection in Firestore
+  try {
+    const orderDocRef = doc(firestoreDb, 'orders', newOrder.id);
+    await setDoc(orderDocRef, newOrder);
+  } catch (err) {
+    console.error('Error saving order to Firestore orders collection:', err);
+  }
+
+  // 2. Persist to disk and state
   saveDatabase();
 
   res.json({ success: true, order: newOrder, total: serverDb.orders.length });
 });
 
-app.post('/api/orders/reset', (req, res) => {
+app.post('/api/orders/reset', async (req, res) => {
   serverDb.orders = [];
+  try {
+    const ordersSnap = await getDocs(collection(firestoreDb, 'orders'));
+    for (const d of ordersSnap.docs) {
+      await deleteDoc(d.ref);
+    }
+  } catch (err) {
+    console.error('Error resetting orders collection in Firestore:', err);
+  }
   saveDatabase();
   res.json({ success: true, message: 'Orders reset to 0 across all devices', total: 0 });
 });
 
-app.post('/api/orders/update-status', (req, res) => {
+app.post('/api/orders/update-status', async (req, res) => {
   const { orderId, status, note, timeline } = req.body;
+  let updatedOrder: any = null;
   if (serverDb.orders) {
     serverDb.orders = serverDb.orders.map(o => {
       if (o.id === orderId) {
@@ -291,26 +420,38 @@ app.post('/api/orders/update-status', (req, res) => {
           ...(o.timeline || []),
           { status, timestamp: new Date().toISOString(), note: note || `Order marked as ${status}` }
         ];
-        return {
+        updatedOrder = {
           ...o,
           status,
           deliveredAt: status === 'Delivered' ? (o.deliveredAt || new Date().toISOString()) : o.deliveredAt,
           timeline: updatedTimeline
         };
+        return updatedOrder;
       }
       return o;
     });
-    saveDatabase();
   }
+
+  if (updatedOrder) {
+    try {
+      const orderDocRef = doc(firestoreDb, 'orders', orderId);
+      await setDoc(orderDocRef, updatedOrder, { merge: true });
+    } catch (err) {
+      console.error('Error updating order in Firestore:', err);
+    }
+  }
+
+  saveDatabase();
   res.json({ success: true, message: 'Order status updated globally' });
 });
 
-app.post('/api/orders/cancel', (req, res) => {
+app.post('/api/orders/cancel', async (req, res) => {
   const { orderId, reason } = req.body;
   if (!orderId) {
     return res.status(400).json({ success: false, message: 'Order ID is required' });
   }
 
+  let updatedOrder: any = null;
   if (serverDb.orders) {
     serverDb.orders = serverDb.orders.map(o => {
       if (o.id === orderId) {
@@ -318,7 +459,7 @@ app.post('/api/orders/cancel', (req, res) => {
           ...(o.timeline || []),
           { status: 'Cancelled', timestamp: new Date().toISOString(), note: reason || 'Order cancelled by customer' }
         ];
-        return {
+        updatedOrder = {
           ...o,
           status: 'Cancelled',
           paymentStatus: o.paymentMethod !== 'COD' ? 'Refunded' : o.paymentStatus,
@@ -326,11 +467,22 @@ app.post('/api/orders/cancel', (req, res) => {
           cancellationReason: reason || 'Order cancelled by customer',
           timeline: updatedTimeline
         };
+        return updatedOrder;
       }
       return o;
     });
-    saveDatabase();
   }
+
+  if (updatedOrder) {
+    try {
+      const orderDocRef = doc(firestoreDb, 'orders', orderId);
+      await setDoc(orderDocRef, updatedOrder, { merge: true });
+    } catch (err) {
+      console.error('Error cancelling order in Firestore:', err);
+    }
+  }
+
+  saveDatabase();
   res.json({ success: true, message: 'Order cancelled successfully and synchronized globally' });
 });
 

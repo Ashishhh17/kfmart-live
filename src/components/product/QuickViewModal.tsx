@@ -5,17 +5,35 @@ import { useStore } from '../../context/StoreContext';
 export const QuickViewModal: React.FC = () => {
   const { quickViewProduct, setQuickViewProduct, addToCart, buyNow, toggleWishlist, isInWishlist } = useStore();
 
+  const isShoe = Boolean(
+    quickViewProduct?.category === 'Shoes' || 
+    quickViewProduct?.name.toLowerCase().includes('shoe') ||
+    quickViewProduct?.name.toLowerCase().includes('sneaker') ||
+    quickViewProduct?.name.toLowerCase().includes('footwear') ||
+    quickViewProduct?.name.toLowerCase().includes('sandal') ||
+    quickViewProduct?.name.toLowerCase().includes('chappal') ||
+    quickViewProduct?.name.toLowerCase().includes('slippers') ||
+    quickViewProduct?.name.toLowerCase().includes('boot')
+  );
+
   const isGarment = Boolean(
     quickViewProduct?.category === 'Fashion' || 
     quickViewProduct?.category === 'Shoes' || 
+    quickViewProduct?.category === 'Men' || 
+    quickViewProduct?.category === 'Women' || 
+    quickViewProduct?.category === 'Kids' || 
+    isShoe ||
     (quickViewProduct?.availableSizes && quickViewProduct.availableSizes.length > 0)
   );
 
+  const defaultShoeSizes = ['6 UK', '7 UK', '8 UK', '9 UK', '10 UK', '11 UK'];
+  const defaultApparelSizes = ['S', 'M', 'L', 'XL', 'XXL'];
+
   const sizesList = quickViewProduct?.availableSizes && quickViewProduct.availableSizes.length > 0 
     ? quickViewProduct.availableSizes 
-    : (quickViewProduct?.category === 'Shoes' ? ['6', '7', '8', '9', '10'] : ['S', 'M', 'L', 'XL', 'XXL']);
+    : (isShoe ? defaultShoeSizes : defaultApparelSizes);
 
-  const [selectedSize, setSelectedSize] = useState<string>(sizesList[0] || 'M');
+  const [selectedSize, setSelectedSize] = useState<string>(sizesList[0] || (isShoe ? '7 UK' : 'M'));
 
   if (!quickViewProduct) return null;
 
@@ -62,14 +80,16 @@ export const QuickViewModal: React.FC = () => {
                 </span>
               </div>
 
-              {/* Garment Size Picker */}
+              {/* Garment / Shoe Size Picker */}
               {isGarment && (
                 <div className="mb-3 space-y-1.5 p-2.5 bg-slate-50 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700">
                   <div className="flex items-center justify-between text-[11px]">
                     <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                      <Tag className="w-3 h-3 text-[#1E3A8A]" /> Size:
+                      <Tag className="w-3 h-3 text-[#1E3A8A]" /> {isShoe ? 'Shoe Size (UK):' : 'Size:'}
                     </span>
-                    <span className="font-extrabold text-[#1E3A8A] dark:text-amber-400">{selectedSize}</span>
+                    <span className="font-extrabold text-[#1E3A8A] dark:text-amber-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded">
+                      {selectedSize}
+                    </span>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {sizesList.map(sz => (
@@ -77,7 +97,7 @@ export const QuickViewModal: React.FC = () => {
                         key={sz}
                         type="button"
                         onClick={() => setSelectedSize(sz)}
-                        className={`min-w-[32px] h-7 px-2 text-[11px] font-bold rounded-lg border transition-all ${
+                        className={`min-w-[36px] h-7 px-2 text-[11px] font-bold rounded-lg border transition-all cursor-pointer ${
                           selectedSize === sz
                             ? 'bg-[#1E3A8A] text-white border-[#1E3A8A] shadow-xs'
                             : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600'

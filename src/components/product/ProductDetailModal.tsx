@@ -29,18 +29,37 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
   const [quantity, setQuantity] = useState(1);
   const [checkPin, setCheckPin] = useState(pincode);
   const [pinValidMessage, setPinValidMessage] = useState<string | null>(null);
+  const [showSizeChart, setShowSizeChart] = useState(false);
+
+  const isShoe = Boolean(
+    product?.category === 'Shoes' || 
+    product?.name.toLowerCase().includes('shoe') ||
+    product?.name.toLowerCase().includes('sneaker') ||
+    product?.name.toLowerCase().includes('footwear') ||
+    product?.name.toLowerCase().includes('sandal') ||
+    product?.name.toLowerCase().includes('chappal') ||
+    product?.name.toLowerCase().includes('slippers') ||
+    product?.name.toLowerCase().includes('boot')
+  );
 
   const isGarment = Boolean(
     product?.category === 'Fashion' || 
     product?.category === 'Shoes' || 
+    product?.category === 'Men' ||
+    product?.category === 'Women' ||
+    product?.category === 'Kids' ||
+    isShoe ||
     (product?.availableSizes && product.availableSizes.length > 0)
   );
 
+  const defaultShoeSizes = ['6 UK', '7 UK', '8 UK', '9 UK', '10 UK', '11 UK'];
+  const defaultApparelSizes = ['S', 'M', 'L', 'XL', 'XXL'];
+
   const sizesList = product?.availableSizes && product.availableSizes.length > 0 
     ? product.availableSizes 
-    : (product?.category === 'Shoes' ? ['6', '7', '8', '9', '10'] : ['S', 'M', 'L', 'XL', 'XXL']);
+    : (isShoe ? defaultShoeSizes : defaultApparelSizes);
 
-  const [selectedSize, setSelectedSize] = useState<string>(sizesList[0] || 'M');
+  const [selectedSize, setSelectedSize] = useState<string>(sizesList[0] || (isShoe ? '7 UK' : 'M'));
 
   if (!product) return null;
 
@@ -219,25 +238,92 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
               </div>
             </div>
 
-            {/* Garments / Apparel Size Selection */}
+            {/* Garments / Apparel / Shoes Size Selection */}
             {isGarment && (
               <div className="space-y-2.5 p-3.5 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
-                    <Tag className="w-3.5 h-3.5 text-[#1E3A8A] dark:text-amber-400" />
-                    Select Size
-                  </span>
-                  <span className="text-xs font-extrabold text-[#1E3A8A] dark:text-amber-400 bg-blue-100/70 dark:bg-blue-900/40 px-2.5 py-0.5 rounded-lg">
-                    Selected: {selectedSize}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                      <Tag className="w-3.5 h-3.5 text-[#1E3A8A] dark:text-amber-400" />
+                      {isShoe ? 'Select Footwear Size (UK)' : 'Select Size'}
+                    </span>
+                    {isShoe && (
+                      <span className="text-[10px] font-extrabold bg-emerald-100 dark:bg-emerald-950/60 text-[#005723] dark:text-emerald-400 px-2 py-0.5 rounded-md border border-emerald-300 dark:border-emerald-800">
+                        UK Standard
+                      </span>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    {isShoe && (
+                      <button
+                        type="button"
+                        onClick={() => setShowSizeChart(prev => !prev)}
+                        className="text-[11px] font-bold text-[#1E3A8A] dark:text-amber-400 hover:underline cursor-pointer flex items-center gap-0.5"
+                      >
+                        {showSizeChart ? 'Hide Chart' : 'Size Chart (EU/CM)'}
+                      </button>
+                    )}
+                    <span className="text-xs font-extrabold text-[#1E3A8A] dark:text-amber-400 bg-blue-100/70 dark:bg-blue-900/40 px-2.5 py-0.5 rounded-lg">
+                      Selected: {selectedSize}
+                    </span>
+                  </div>
                 </div>
+
+                {/* Interactive Size Chart for Shoes */}
+                {isShoe && showSizeChart && (
+                  <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-blue-200 dark:border-blue-900/50 shadow-inner space-y-2 text-xs">
+                    <div className="flex items-center justify-between font-bold text-slate-700 dark:text-slate-300 pb-1 border-b border-slate-200 dark:border-slate-800">
+                      <span>UK / India Footwear Conversion Guide</span>
+                      <span className="text-[10px] text-slate-400">Fits true to size</span>
+                    </div>
+                    <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5 text-center font-mono text-[11px]">
+                      <div className="p-1.5 bg-slate-50 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700">
+                        <div className="font-extrabold text-[#1E3A8A] dark:text-amber-400">6 UK</div>
+                        <div className="text-[10px] text-slate-500">40 EU</div>
+                        <div className="text-[9px] text-slate-400">25 cm</div>
+                      </div>
+                      <div className="p-1.5 bg-slate-50 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700">
+                        <div className="font-extrabold text-[#1E3A8A] dark:text-amber-400">7 UK</div>
+                        <div className="text-[10px] text-slate-500">41 EU</div>
+                        <div className="text-[9px] text-slate-400">26 cm</div>
+                      </div>
+                      <div className="p-1.5 bg-slate-50 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700">
+                        <div className="font-extrabold text-[#1E3A8A] dark:text-amber-400">8 UK</div>
+                        <div className="text-[10px] text-slate-500">42 EU</div>
+                        <div className="text-[9px] text-slate-400">27 cm</div>
+                      </div>
+                      <div className="p-1.5 bg-slate-50 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700">
+                        <div className="font-extrabold text-[#1E3A8A] dark:text-amber-400">9 UK</div>
+                        <div className="text-[10px] text-slate-500">43 EU</div>
+                        <div className="text-[9px] text-slate-400">28 cm</div>
+                      </div>
+                      <div className="p-1.5 bg-slate-50 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700">
+                        <div className="font-extrabold text-[#1E3A8A] dark:text-amber-400">10 UK</div>
+                        <div className="text-[10px] text-slate-500">44 EU</div>
+                        <div className="text-[9px] text-slate-400">29 cm</div>
+                      </div>
+                      <div className="p-1.5 bg-slate-50 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700">
+                        <div className="font-extrabold text-[#1E3A8A] dark:text-amber-400">11 UK</div>
+                        <div className="text-[10px] text-slate-500">45 EU</div>
+                        <div className="text-[9px] text-slate-400">30 cm</div>
+                      </div>
+                      <div className="p-1.5 bg-slate-50 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700">
+                        <div className="font-extrabold text-[#1E3A8A] dark:text-amber-400">12 UK</div>
+                        <div className="text-[10px] text-slate-500">46 EU</div>
+                        <div className="text-[9px] text-slate-400">31 cm</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex flex-wrap items-center gap-2 pt-1">
                   {sizesList.map((sz) => (
                     <button
                       key={sz}
                       type="button"
                       onClick={() => setSelectedSize(sz)}
-                      className={`min-w-[46px] h-10 px-3.5 rounded-xl text-xs font-extrabold transition-all border ${
+                      className={`min-w-[48px] h-10 px-3.5 rounded-xl text-xs font-extrabold transition-all border cursor-pointer ${
                         selectedSize === sz
                           ? 'bg-[#1E3A8A] text-white border-[#1E3A8A] shadow-md scale-105 ring-2 ring-blue-300 dark:ring-blue-800'
                           : 'bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 border-slate-300 dark:border-slate-600 hover:border-[#1E3A8A]'
@@ -247,7 +333,11 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
                     </button>
                   ))}
                 </div>
-                <p className="text-[10px] text-slate-500">Standard Indian sizing (S, M, L, XL, XXL). Free replacement within 24 hours.</p>
+                <p className="text-[10px] text-slate-500">
+                  {isShoe 
+                    ? 'Standard Indian/UK shoe sizing (6 UK, 7 UK, 8 UK, 9 UK, 10 UK, etc.). Free doorstep size exchange within 24 hours.' 
+                    : 'Standard Indian sizing (S, M, L, XL, XXL). Free replacement within 24 hours.'}
+                </p>
               </div>
             )}
 

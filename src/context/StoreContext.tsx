@@ -1,5 +1,16 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { subscribeToGlobalState, updateGlobalState } from '../lib/db';
+import { 
+  subscribeToGlobalState, 
+  updateGlobalState, 
+  subscribeToOrders, 
+  saveOrderToFirestore, 
+  updateOrderInFirestore, 
+  deleteOrderFromFirestore,
+  subscribeToProducts,
+  saveProductToFirestore,
+  deleteProductFromFirestore,
+  safeSetLocalStorage
+} from '../lib/db';
 import { 
   Product, 
   Vendor, 
@@ -207,9 +218,28 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [activeInvoiceOrder, setActiveInvoiceOrder] = useState<Order | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
+  // Helper to determine accurate default size based on product category & naming
+  const resolveDefaultProductSize = (product: Product, size?: string): string | undefined => {
+    if (size) return size;
+    if (product.availableSizes && product.availableSizes.length > 0) {
+      return product.availableSizes[0];
+    }
+    const isShoe = Boolean(
+      product.category === 'Shoes' || 
+      product.name.toLowerCase().includes('shoe') ||
+      product.name.toLowerCase().includes('sneaker') ||
+      product.name.toLowerCase().includes('footwear') ||
+      product.name.toLowerCase().includes('sandal') ||
+      product.name.toLowerCase().includes('boot')
+    );
+    if (isShoe) return '7 UK';
+    if (['Fashion', 'Men', 'Women', 'Kids'].includes(product.category)) return 'M';
+    return undefined;
+  };
+
   // Buy Now: Instant single-click direct checkout
   const buyNow = (product: Product, quantity = 1, size?: string) => {
-    const finalSize = size || (product.availableSizes && product.availableSizes.length > 0 ? product.availableSizes[0] : (['Fashion', 'Shoes'].includes(product.category) ? 'M' : undefined));
+    const finalSize = resolveDefaultProductSize(product, size);
     setCart([{ product, quantity, selectedSize: finalSize }]);
     setIsCartDrawerOpen(false);
     setIsCheckoutModalOpen(true);
@@ -297,7 +327,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
 
         if (Array.isArray(serverOrders) && serverOrders.length > 0) {
-          setOrders(serverOrders);
+          setOrders(prev => {
+            // Keep existing if already loaded by dedicated orders listener
+            return prev.length > 0 ? prev : serverOrders;
+          });
         }
 
         if (needsInitialSeed) {
@@ -333,7 +366,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     };
 
-    // 1. Initial immediate API fetch
+    // 1. Initial immediate API fetch for state
     fetch('/api/state')
       .then(res => res.json())
       .then(resData => {
@@ -343,21 +376,57 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       })
       .catch(() => {});
 
-    // 2. Real-time Firestore snapshot listener
-    const unsubscribe = subscribeToGlobalState((data) => {
+    // 2. Fetch orders immediately via API
+    fetch('/api/orders')
+      .then(r => r.json())
+      .then(res => {
+        if (res.success && Array.isArray(res.orders) && res.orders.length > 0) {
+          setOrders(res.orders);
+        }
+      })
+      .catch(() => {});
+
+    // 3. Real-time Firestore global snapshot listener (vendors, delivery, settings, coupons)
+    const unsubscribeGlobal = subscribeToGlobalState((data) => {
       if (data) {
         applyIncomingData(data);
       }
     });
 
+    // 4. Real-time Firestore dedicated products listener (prevents 1MB limit & syncs products instantly)
+    const unsubscribeProducts = subscribeToProducts((liveProducts) => {
+      if (!isMounted) return;
+      if (Array.isArray(liveProducts) && liveProducts.length > 0) {
+        setProducts(liveProducts);
+      }
+    });
+
+    // 5. Real-time Firestore dedicated orders listener (instant cross-phone sync)
+    const unsubscribeOrders = subscribeToOrders((liveOrders) => {
+      if (!isMounted) return;
+      if (Array.isArray(liveOrders)) {
+        setOrders(liveOrders);
+        safeSetLocalStorage('kfmart_orders', JSON.stringify(liveOrders));
+      }
+    });
+
     return () => {
       isMounted = false;
-      unsubscribe();
+      unsubscribeGlobal();
+      unsubscribeProducts();
+      unsubscribeOrders();
     };
   }, []);
 
   const resetOrdersToZero = () => {
+    // Delete all current orders from Firestore collection
+    orders.forEach(o => {
+      deleteOrderFromFirestore(o.id);
+    });
     setOrders([]);
+    try {
+      localStorage.removeItem('kfmart_orders');
+    } catch (e) {}
     fetch('/api/orders/reset', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
@@ -600,7 +669,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         [baseKey]: trimmedNewPass
       };
       setPasswords(updatedPasswords);
-      localStorage.setItem('kfmart_user_passwords_v2', JSON.stringify(updatedPasswords));
+      safeSetLocalStorage('kfmart_user_passwords_v2', JSON.stringify(updatedPasswords));
 
       return {
         success: true,
@@ -609,13 +678,28 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  // Sync state to LocalStorage
+  // Sync state to LocalStorage safely to prevent quota errors
   useEffect(() => {
-    localStorage.setItem('kfmart_cart', JSON.stringify(cart));
+    // Only store 1 thumbnail image per cart item to save browser storage
+    const compactCart = cart.map(item => ({
+      ...item,
+      product: {
+        ...item.product,
+        images: (item.product.images && item.product.images.length > 0)
+          ? [item.product.images[0]]
+          : (item.product.images || [])
+      }
+    }));
+    safeSetLocalStorage('kfmart_cart', JSON.stringify(compactCart));
   }, [cart]);
 
   useEffect(() => {
-    localStorage.setItem('kfmart_wishlist', JSON.stringify(wishlist));
+    // Only store 1 thumbnail image per wishlist item to save browser storage
+    const compactWishlist = wishlist.map(p => ({
+      ...p,
+      images: (p.images && p.images.length > 0) ? [p.images[0]] : (p.images || [])
+    }));
+    safeSetLocalStorage('kfmart_wishlist', JSON.stringify(compactWishlist));
   }, [wishlist]);
 
   // Automatic Escrow Release Check for Vendor Payments
@@ -720,6 +804,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setProducts(prev => [newProduct, ...prev]);
     addNotification('Product Added', `Product "${newProduct.name}" created with selling price ₹${sellingPrice}`, 'vendor');
 
+    // Save directly to dedicated Firestore products collection (guarantees cross-device sync & no 1MB overflow)
+    saveProductToFirestore(newProduct);
+
     // Post to server for multi-device cross-sync
     fetch('/api/products/add', {
       method: 'POST',
@@ -732,6 +819,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const updateProduct = (id: string, productData: Partial<Product>) => {
     setProducts(prev => {
+      let targetProduct: Product | undefined;
       const updated = prev.map(p => {
         if (p.id === id) {
           const vPrice = productData.vendorPrice ?? p.vendorPrice;
@@ -739,15 +827,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           const compCharge = productData.companyCharge ?? p.companyCharge;
           const sellingPrice = vPrice + shipCharge + compCharge;
           const mrp = productData.mrp ?? p.mrp;
-          return {
+          targetProduct = {
             ...p,
             ...productData,
             sellingPrice,
             discountPercentage: Math.round(((mrp - sellingPrice) / mrp) * 100)
           };
+          return targetProduct;
         }
         return p;
       });
+      if (targetProduct) {
+        saveProductToFirestore(targetProduct);
+      }
       fetch('/api/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -758,6 +850,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const deleteProduct = (id: string) => {
+    deleteProductFromFirestore(id);
     setProducts(prev => {
       const updated = prev.filter(p => p.id !== id);
       fetch('/api/products/delete', {
@@ -771,7 +864,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Cart operations
   const addToCart = (product: Product, quantity = 1, color?: string, size?: string) => {
-    const finalSize = size || (product.availableSizes && product.availableSizes.length > 0 ? product.availableSizes[0] : (['Fashion', 'Shoes'].includes(product.category) ? 'M' : undefined));
+    const finalSize = resolveDefaultProductSize(product, size);
     setCart(prev => {
       const existingIndex = prev.findIndex(item => item.product.id === product.id && item.selectedSize === finalSize);
       if (existingIndex > -1) {
@@ -866,9 +959,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // Pick vendor estimated delivery time from cart if available or default to 24 Hours Express
     const vendorDeliveryEst = cart[0]?.product?.estimatedDeliveryTime || '24 Hours Express Delivery';
 
+    // Keep order items lightweight (<2KB) by saving single thumbnail, avoiding massive base64 arrays
+    const sanitizedItems = cart.map(item => ({
+      product: {
+        ...item.product,
+        images: (item.product.images && item.product.images.length > 0)
+          ? [item.product.images[0]]
+          : (item.product.images || [])
+      },
+      quantity: item.quantity,
+      selectedColor: item.selectedColor,
+      selectedSize: item.selectedSize
+    }));
+
     const newOrder: Order = {
       id: 'ORD-2026-' + Math.floor(1000 + Math.random() * 9000),
-      items: [...cart],
+      items: sanitizedItems,
       subtotal: summary.subtotal,
       discountAmount: summary.discount,
       shippingFee: summary.shipping,
@@ -900,10 +1006,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       vendorPaymentReleased: false
     };
 
-    setOrders(prev => [newOrder, ...prev]);
+    // 1. Update local state immediately
+    setOrders(prev => [newOrder, ...prev.filter(o => o.id !== newOrder.id)]);
     clearCart();
 
-    // Post to server for multi-device sync
+    // 2. Persist directly to dedicated Firestore collection (instantly pushes to Admin & Vendor phones)
+    saveOrderToFirestore(newOrder);
+
+    // 3. Post to server for multi-device sync and local disk backup
     fetch('/api/orders/create', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -923,6 +1033,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Update Order Status (handles Delayed notification requirement)
   const updateOrderStatus = (orderId: string, status: OrderStatus, note?: string) => {
+    let updatedOrder: Order | null = null;
     setOrders(prev => {
       const updated = prev.map(order => {
         if (order.id === orderId) {
@@ -949,20 +1060,27 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             );
           }
 
-          return {
+          updatedOrder = {
             ...order,
             status,
             deliveredAt,
             timeline: updatedTimeline
           };
+          return updatedOrder;
         }
         return order;
       });
 
+      // Update Firestore directly
+      if (updatedOrder) {
+        updateOrderInFirestore(orderId, updatedOrder);
+      }
+
+      // Sync with server
       fetch('/api/orders/update-status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId, status })
+        body: JSON.stringify({ orderId, status, note })
       }).catch(() => {});
 
       return updated;
@@ -984,23 +1102,23 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       { status: 'Cancelled' as OrderStatus, timestamp: cancelledAt, note: reason }
     ];
 
+    const updatedOrder = {
+      ...order,
+      status: 'Cancelled' as OrderStatus,
+      paymentStatus: order.paymentMethod !== 'COD' ? ('Refunded' as const) : order.paymentStatus,
+      cancelledAt,
+      cancellationReason: reason,
+      timeline: updatedTimeline
+    };
+
     setOrders(prev => {
-      const updated = prev.map(o => {
-        if (o.id === orderId) {
-          return {
-            ...o,
-            status: 'Cancelled' as OrderStatus,
-            paymentStatus: o.paymentMethod !== 'COD' ? 'Refunded' as const : o.paymentStatus,
-            cancelledAt,
-            cancellationReason: reason,
-            timeline: updatedTimeline
-          };
-        }
-        return o;
-      });
+      const updated = prev.map(o => o.id === orderId ? updatedOrder : o);
       localStorage.setItem('kfmart_orders', JSON.stringify(updated));
       return updated;
     });
+
+    // Update Firestore directly
+    updateOrderInFirestore(orderId, updatedOrder);
 
     addNotification(
       `Order #${orderId} Cancelled`,
@@ -1058,6 +1176,21 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           courierPartner: details.courierPartner || order.courierPartner,
           currentShipmentLocation: details.currentShipmentLocation || order.currentShipmentLocation
         };
+
+        // Direct Firestore update
+        updateOrderInFirestore(orderId, updatedOrder);
+
+        // Server sync
+        fetch('/api/orders/update-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orderId,
+            status: nextStatus,
+            note: details.note,
+            timeline
+          })
+        }).catch(() => {});
 
         addNotification(
           `Shipment Updated for #${order.id}`,

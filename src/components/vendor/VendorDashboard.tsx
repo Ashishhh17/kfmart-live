@@ -123,6 +123,16 @@ const CATEGORY_IMAGE_PRESETS: Partial<Record<Category, { title: string; url: str
   ]
 };
 
+export const UK_SHOE_SIZES = [
+  '1 UK', '2 UK', '3 UK', '4 UK', '5 UK', 
+  '6 UK', '7 UK', '8 UK', '9 UK', '10 UK', 
+  '11 UK', '12 UK', '13 UK'
+];
+
+export const APPAREL_SIZES = [
+  'XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL', 'Free Size'
+];
+
 export const VendorDashboard: React.FC = () => {
   const { 
     currentVendor, 
@@ -131,6 +141,7 @@ export const VendorDashboard: React.FC = () => {
     setIsVendorRegModalOpen,
     products, 
     addProduct, 
+    updateProduct,
     deleteProduct, 
     orders, 
     updateOrderShipment,
@@ -146,6 +157,14 @@ export const VendorDashboard: React.FC = () => {
   const [description, setDescription] = useState('');
   const [estimatedDeliveryTime, setEstimatedDeliveryTime] = useState('24 Hours Express');
   const [selectedSizes, setSelectedSizes] = useState<string[]>(['S', 'M', 'L', 'XL', 'XXL']);
+  const [sizeType, setSizeType] = useState<'shoes' | 'apparel'>('apparel');
+  const [customSizeInput, setCustomSizeInput] = useState('');
+
+  // Editing Product Sizes Modal
+  const [editingSizesProduct, setEditingSizesProduct] = useState<Product | null>(null);
+  const [editingSizesList, setEditingSizesList] = useState<string[]>([]);
+  const [editingCustomSizeInput, setEditingCustomSizeInput] = useState('');
+  const [editingSizeType, setEditingSizeType] = useState<'shoes' | 'apparel'>('shoes');
   
   // Multi-Image & Upload State
   const [uploadedImages, setUploadedImages] = useState<string[]>([
@@ -187,7 +206,7 @@ export const VendorDashboard: React.FC = () => {
         img.src = e.target?.result as string;
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          const maxDim = 800;
+          const maxDim = 600;
           let width = img.width;
           let height = img.height;
           if (width > height) {
@@ -206,7 +225,7 @@ export const VendorDashboard: React.FC = () => {
           const ctx = canvas.getContext('2d');
           if (ctx) {
             ctx.drawImage(img, 0, 0, width, height);
-            const compressed = canvas.toDataURL('image/jpeg', 0.8);
+            const compressed = canvas.toDataURL('image/jpeg', 0.65);
             resolve(compressed);
           } else {
             resolve(img.src);
@@ -363,7 +382,7 @@ export const VendorDashboard: React.FC = () => {
       ? uploadedImages 
       : ['https://images.unsplash.com/photo-1617137984095-74e4e5e3613f?q=80&w=800&auto=format&fit=crop'];
 
-    const isFashionOrShoes = ['Men', 'Women', 'Kids', 'Fashion', 'Shoes'].includes(category);
+    const isFashionOrShoes = ['Men', 'Women', 'Kids', 'Fashion', 'Shoes', 'Footwear'].includes(category) || selectedSizes.length > 0;
 
     const created = addProduct({
       name,
@@ -371,7 +390,7 @@ export const VendorDashboard: React.FC = () => {
       brand: brand || activeVendor.businessName,
       description: description || `Premium ${name} by ${activeVendor.businessName}. Guaranteed authentic craftsmanship delivered in 24 hours.`,
       images: finalImages,
-      availableSizes: isFashionOrShoes ? selectedSizes : undefined,
+      availableSizes: selectedSizes.length > 0 ? selectedSizes : undefined,
       vendorId: activeVendor.id,
       vendorName: activeVendor.businessName,
       vendorRating: activeVendor.rating || 4.9,
@@ -585,6 +604,17 @@ export const VendorDashboard: React.FC = () => {
                     </span>
                   </div>
                   <h4 className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1">{p.name}</h4>
+                  
+                  {/* Sizes Preview on Card */}
+                  {p.availableSizes && p.availableSizes.length > 0 && (
+                    <div className="flex flex-wrap gap-1 items-center px-2 py-1 bg-slate-100/80 dark:bg-slate-700/60 rounded-lg text-[10px]">
+                      <span className="font-extrabold text-[#005723] dark:text-emerald-400">Sizes:</span>
+                      <span className="text-slate-700 dark:text-slate-300 font-semibold truncate">
+                        {p.availableSizes.join(', ')}
+                      </span>
+                    </div>
+                  )}
+
                   <div className="p-2.5 bg-slate-50 dark:bg-slate-700/50 rounded-xl text-[11px] space-y-1">
                     <div className="flex justify-between text-slate-500"><span>Vendor Price:</span> <strong>₹{p.vendorPrice}</strong></div>
                     <div className="flex justify-between text-slate-500"><span>Delivery Fee:</span> <strong>₹{p.shippingCharge}</strong></div>
@@ -593,12 +623,28 @@ export const VendorDashboard: React.FC = () => {
                       <span>Selling Price:</span> <span>₹{p.sellingPrice}</span>
                     </div>
                   </div>
-                  <button
-                    onClick={() => deleteProduct(p.id)}
-                    className="w-full text-center text-xs font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 py-1.5 rounded-xl transition-colors cursor-pointer"
-                  >
-                    Delete Item
-                  </button>
+
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingSizesProduct(p);
+                        const isShoeItem = p.category === 'Shoes' || p.category === 'Footwear' || p.name.toLowerCase().includes('shoe') || p.name.toLowerCase().includes('sneaker');
+                        setEditingSizeType(isShoeItem ? 'shoes' : 'apparel');
+                        setEditingSizesList(p.availableSizes || (isShoeItem ? ['6 UK', '7 UK', '8 UK', '9 UK', '10 UK'] : ['S', 'M', 'L', 'XL', 'XXL']));
+                      }}
+                      className="w-full text-center text-xs font-bold text-[#005723] dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 py-1.5 rounded-xl transition-colors cursor-pointer border border-emerald-200 dark:border-emerald-800"
+                    >
+                      Edit Sizes
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteProduct(p.id)}
+                      className="w-full text-center text-xs font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 py-1.5 rounded-xl transition-colors cursor-pointer"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -656,10 +702,16 @@ export const VendorDashboard: React.FC = () => {
                       if (presets && presets.length > 0) {
                         setUploadedImages([presets[0].url]);
                       }
+                      if (['Shoes', 'Footwear'].includes(newCat)) {
+                        setSizeType('shoes');
+                        setSelectedSizes(['6 UK', '7 UK', '8 UK', '9 UK', '10 UK']);
+                      } else if (['Men', 'Women', 'Fashion'].includes(newCat) && sizeType === 'shoes') {
+                        // Keep current if vendor intentionally set shoes, or allow switching
+                      }
                     }}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 dark:text-white font-bold outline-none focus:ring-2 focus:ring-[#005723]"
                   >
-                    {['Men', 'Women', 'Kids', 'Fashion', 'Electronics', 'Home', 'Beauty', 'Mobile', 'Groceries'].map(cat => (
+                    {['Men', 'Women', 'Kids', 'Fashion', 'Shoes', 'Footwear', 'Electronics', 'Home', 'Beauty', 'Mobile', 'Groceries', 'Accessories', 'Sports', 'Toys'].map(cat => (
                       <option key={cat} value={cat}>{cat}</option>
                     ))}
                   </select>
@@ -676,18 +728,126 @@ export const VendorDashboard: React.FC = () => {
                 </div>
               </div>
 
-              {/* Garment / Apparel Size Options Selector */}
-              {['Men', 'Women', 'Kids', 'Fashion', 'Shoes'].includes(category) && (
-                <div className="p-3 bg-blue-50/70 dark:bg-slate-900/80 rounded-2xl border border-blue-200/80 dark:border-slate-700 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                      <Tag className="w-3.5 h-3.5 text-[#005723] dark:text-amber-400" />
-                      Available Garment Sizes:
-                    </span>
-                    <span className="text-[10px] text-slate-500">Shoppers will be able to choose from selected sizes</span>
+              {/* Comprehensive Product Size Selector (Footwear UK Sizes & Clothes) */}
+              {['Men', 'Women', 'Kids', 'Fashion', 'Shoes', 'Footwear', 'Sports'].includes(category) && (
+                <div className="p-4 bg-gradient-to-br from-blue-50/70 to-emerald-50/40 dark:from-slate-900 dark:to-slate-800 rounded-2xl border border-blue-200/80 dark:border-slate-700 space-y-3.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <span className="font-extrabold text-xs text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                        <Tag className="w-3.5 h-3.5 text-[#005723] dark:text-emerald-400" />
+                        Available Sizing Options
+                      </span>
+                      <span className="text-[10px] text-slate-500">Select UK shoe sizes or apparel sizes for customers</span>
+                    </div>
+
+                    {/* Sizing Mode Switcher */}
+                    <div className="flex items-center p-1 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSizeType('shoes');
+                          if (selectedSizes.length === 0 || selectedSizes.includes('M')) {
+                            setSelectedSizes(['6 UK', '7 UK', '8 UK', '9 UK', '10 UK']);
+                          }
+                        }}
+                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                          sizeType === 'shoes'
+                            ? 'bg-[#005723] text-white shadow-xs'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                        }`}
+                      >
+                        👟 Shoes (UK Sizes)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSizeType('apparel');
+                          if (selectedSizes.length === 0 || selectedSizes.some(s => s.includes('UK'))) {
+                            setSelectedSizes(['S', 'M', 'L', 'XL', 'XXL']);
+                          }
+                        }}
+                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                          sizeType === 'apparel'
+                            ? 'bg-[#005723] text-white shadow-xs'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                        }`}
+                      >
+                        👕 Clothes / Garments
+                      </button>
+                    </div>
                   </div>
+
+                  {/* Quick Preset Buttons */}
+                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Presets:</span>
+                    {sizeType === 'shoes' ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedSizes(['6 UK', '7 UK', '8 UK', '9 UK', '10 UK'])}
+                          className="px-2 py-0.5 rounded-lg text-[11px] font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-[#005723] cursor-pointer"
+                        >
+                          Popular (6 UK - 10 UK)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedSizes(['5 UK', '6 UK', '7 UK', '8 UK', '9 UK', '10 UK', '11 UK', '12 UK'])}
+                          className="px-2 py-0.5 rounded-lg text-[11px] font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-[#005723] cursor-pointer"
+                        >
+                          All Adult (5 UK - 12 UK)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedSizes(['1 UK', '2 UK', '3 UK', '4 UK', '5 UK'])}
+                          className="px-2 py-0.5 rounded-lg text-[11px] font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-[#005723] cursor-pointer"
+                        >
+                          Kids Shoes (1 UK - 5 UK)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedSizes([])}
+                          className="px-2 py-0.5 rounded-lg text-[11px] font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 cursor-pointer"
+                        >
+                          Clear
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedSizes(['S', 'M', 'L', 'XL', 'XXL'])}
+                          className="px-2 py-0.5 rounded-lg text-[11px] font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-[#005723] cursor-pointer"
+                        >
+                          Standard (S - XXL)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedSizes(['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL'])}
+                          className="px-2 py-0.5 rounded-lg text-[11px] font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-[#005723] cursor-pointer"
+                        >
+                          All Sizes (XS - 4XL)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedSizes(['Free Size'])}
+                          className="px-2 py-0.5 rounded-lg text-[11px] font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-[#005723] cursor-pointer"
+                        >
+                          Free Size Only
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedSizes([])}
+                          className="px-2 py-0.5 rounded-lg text-[11px] font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 cursor-pointer"
+                        >
+                          Clear
+                        </button>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Size Toggle Buttons */}
                   <div className="flex flex-wrap gap-2">
-                    {['S', 'M', 'L', 'XL', 'XXL'].map(sz => (
+                    {(sizeType === 'shoes' ? UK_SHOE_SIZES : APPAREL_SIZES).map(sz => (
                       <button
                         key={sz}
                         type="button"
@@ -696,15 +856,54 @@ export const VendorDashboard: React.FC = () => {
                             prev.includes(sz) ? prev.filter(s => s !== sz) : [...prev, sz]
                           );
                         }}
-                        className={`min-w-[48px] py-1.5 px-3 rounded-xl font-black text-xs transition-all border ${
+                        className={`min-w-[54px] py-2 px-3 rounded-xl font-extrabold text-xs transition-all border cursor-pointer ${
                           selectedSizes.includes(sz)
-                            ? 'bg-[#005723] text-white border-[#005723] shadow-xs'
-                            : 'bg-white dark:bg-slate-800 text-slate-500 border-slate-300 dark:border-slate-600'
+                            ? 'bg-[#005723] text-white border-[#005723] shadow-xs scale-105'
+                            : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:border-[#005723]'
                         }`}
                       >
                         {sz} {selectedSizes.includes(sz) ? '✓' : '+'}
                       </button>
                     ))}
+                  </div>
+
+                  {/* Add Custom Size Input */}
+                  <div className="flex items-center gap-2 pt-1">
+                    <input
+                      type="text"
+                      value={customSizeInput}
+                      onChange={(e) => setCustomSizeInput(e.target.value)}
+                      placeholder={sizeType === 'shoes' ? "Add custom shoe size (e.g. 6.5 UK, 7.5 UK, 42 EU)" : "Add custom size (e.g. 28, 30, 32, 34, 5XL)"}
+                      className="flex-1 max-w-xs px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold outline-none focus:ring-1 focus:ring-[#005723]"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          const val = customSizeInput.trim();
+                          if (val && !selectedSizes.includes(val)) {
+                            setSelectedSizes(prev => [...prev, val]);
+                            setCustomSizeInput('');
+                          }
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const val = customSizeInput.trim();
+                        if (val && !selectedSizes.includes(val)) {
+                          setSelectedSizes(prev => [...prev, val]);
+                          setCustomSizeInput('');
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-[#005723] hover:bg-[#00401A] text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+                    >
+                      + Add Size
+                    </button>
+
+                    {/* Selected count pill */}
+                    <div className="ml-auto text-xs font-bold text-slate-600 dark:text-slate-300">
+                      Selected: <span className="text-[#005723] dark:text-emerald-400 font-extrabold">{selectedSizes.length} sizes</span>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1333,6 +1532,206 @@ export const VendorDashboard: React.FC = () => {
             <p className="text-xs text-emerald-100 max-w-md">
               Your payments are credited automatically after the customer's 24-hour return period expires.
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Product Sizes Modal */}
+      {editingSizesProduct && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-3">
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Tag className="w-4 h-4 text-[#005723] dark:text-emerald-400" />
+                  Manage Available Sizes
+                </h3>
+                <p className="text-xs text-slate-500 line-clamp-1">{editingSizesProduct.name}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingSizesProduct(null)}
+                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500 hover:text-slate-800 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Sizing Mode Switcher */}
+            <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
+              <button
+                type="button"
+                onClick={() => setEditingSizeType('shoes')}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                  editingSizeType === 'shoes'
+                    ? 'bg-[#005723] text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                👟 Shoes (UK Sizing)
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditingSizeType('apparel')}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                  editingSizeType === 'apparel'
+                    ? 'bg-[#005723] text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                👕 Garments / Apparel
+              </button>
+            </div>
+
+            {/* Presets */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Presets:</span>
+              {editingSizeType === 'shoes' ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setEditingSizesList(['6 UK', '7 UK', '8 UK', '9 UK', '10 UK'])}
+                    className="px-2 py-0.5 rounded-lg text-[11px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-emerald-50 hover:text-[#005723] cursor-pointer"
+                  >
+                    Popular (6-10 UK)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingSizesList(['5 UK', '6 UK', '7 UK', '8 UK', '9 UK', '10 UK', '11 UK', '12 UK'])}
+                    className="px-2 py-0.5 rounded-lg text-[11px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-emerald-50 hover:text-[#005723] cursor-pointer"
+                  >
+                    Adult (5-12 UK)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingSizesList(['1 UK', '2 UK', '3 UK', '4 UK', '5 UK'])}
+                    className="px-2 py-0.5 rounded-lg text-[11px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-emerald-50 hover:text-[#005723] cursor-pointer"
+                  >
+                    Kids (1-5 UK)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingSizesList([])}
+                    className="px-2 py-0.5 rounded-lg text-[11px] font-bold text-red-500 hover:bg-red-50 cursor-pointer"
+                  >
+                    Clear
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setEditingSizesList(['S', 'M', 'L', 'XL', 'XXL'])}
+                    className="px-2 py-0.5 rounded-lg text-[11px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-emerald-50 hover:text-[#005723] cursor-pointer"
+                  >
+                    S - XXL
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingSizesList(['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL'])}
+                    className="px-2 py-0.5 rounded-lg text-[11px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-emerald-50 hover:text-[#005723] cursor-pointer"
+                  >
+                    All XS-4XL
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingSizesList([])}
+                    className="px-2 py-0.5 rounded-lg text-[11px] font-bold text-red-500 hover:bg-red-50 cursor-pointer"
+                  >
+                    Clear
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Size Buttons */}
+            <div className="flex flex-wrap gap-2">
+              {(editingSizeType === 'shoes' ? UK_SHOE_SIZES : APPAREL_SIZES).map(sz => (
+                <button
+                  key={sz}
+                  type="button"
+                  onClick={() => {
+                    setEditingSizesList(prev => 
+                      prev.includes(sz) ? prev.filter(s => s !== sz) : [...prev, sz]
+                    );
+                  }}
+                  className={`min-w-[50px] py-1.5 px-3 rounded-xl font-extrabold text-xs transition-all border cursor-pointer ${
+                    editingSizesList.includes(sz)
+                      ? 'bg-[#005723] text-white border-[#005723] shadow-xs'
+                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600'
+                  }`}
+                >
+                  {sz} {editingSizesList.includes(sz) ? '✓' : '+'}
+                </button>
+              ))}
+            </div>
+
+            {/* Custom Size Addition */}
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={editingCustomSizeInput}
+                onChange={(e) => setEditingCustomSizeInput(e.target.value)}
+                placeholder="Custom size (e.g. 6.5 UK, 7.5 UK, 41 EU)"
+                className="flex-1 px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold outline-none focus:ring-1 focus:ring-[#005723]"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const val = editingCustomSizeInput.trim();
+                    if (val && !editingSizesList.includes(val)) {
+                      setEditingSizesList(prev => [...prev, val]);
+                      setEditingCustomSizeInput('');
+                    }
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const val = editingCustomSizeInput.trim();
+                  if (val && !editingSizesList.includes(val)) {
+                    setEditingSizesList(prev => [...prev, val]);
+                    setEditingCustomSizeInput('');
+                  }
+                }}
+                className="px-3 py-1.5 bg-slate-800 dark:bg-slate-700 text-white rounded-xl text-xs font-bold hover:bg-slate-700 cursor-pointer"
+              >
+                + Add
+              </button>
+            </div>
+
+            {/* Active Selected Preview */}
+            <div className="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">
+              <span className="font-bold text-slate-600 dark:text-slate-400">Current active sizes ({editingSizesList.length}):</span>
+              <p className="font-extrabold text-[#005723] dark:text-emerald-400 mt-1">
+                {editingSizesList.length > 0 ? editingSizesList.join(', ') : 'No sizes selected (One size fits all)'}
+              </p>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-700">
+              <button
+                type="button"
+                onClick={() => setEditingSizesProduct(null)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (editingSizesProduct) {
+                    updateProduct(editingSizesProduct.id, {
+                      availableSizes: editingSizesList.length > 0 ? editingSizesList : undefined
+                    });
+                    setEditingSizesProduct(null);
+                  }
+                }}
+                className="px-5 py-2 rounded-xl text-xs font-black bg-[#005723] hover:bg-[#00401A] text-white shadow-md cursor-pointer transition-all"
+              >
+                Save Sizes
+              </button>
+            </div>
           </div>
         </div>
       )}

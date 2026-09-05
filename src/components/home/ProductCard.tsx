@@ -84,7 +84,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onOpenDetails
           </div>
 
           {/* Price Row */}
-          <div className="flex items-baseline gap-1.5 mb-2">
+          <div className="flex items-baseline gap-1.5 mb-1.5">
             <span className="text-sm font-black text-slate-900">
               ₹{product.sellingPrice.toLocaleString()}
             </span>
@@ -94,6 +94,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onOpenDetails
               </span>
             )}
           </div>
+
+          {/* Sizes preview if available */}
+          {product.availableSizes && product.availableSizes.length > 0 && (
+            <div className="flex items-center gap-1 mb-2 px-1.5 py-0.5 bg-slate-50 rounded text-[10px] text-slate-600 border border-slate-100">
+              <span className="font-extrabold text-[#005723]">Sizes:</span>
+              <span className="truncate font-semibold">{product.availableSizes.join(', ')}</span>
+            </div>
+          )}
 
           {/* Delivery & Pincode tag */}
           <div className="flex items-center justify-between text-[10px] font-semibold text-slate-600 bg-slate-50 p-1.5 rounded-md mb-2 border border-slate-100">
