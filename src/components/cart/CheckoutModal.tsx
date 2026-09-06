@@ -17,7 +17,9 @@ import {
   Zap,
   Lock,
   ArrowUpRight,
-  RefreshCw
+  RefreshCw,
+  Printer,
+  FileText
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import { Order } from '../../types';
@@ -29,7 +31,7 @@ interface CheckoutModalProps {
 }
 
 export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, onOrderSuccess }) => {
-  const { cart, getCartSummary, createOrder, pincode, validatePincode, pincodeError } = useStore();
+  const { cart, getCartSummary, createOrder, pincode, validatePincode, pincodeError, setActiveInvoiceOrder } = useStore();
   
   const [step, setStep] = useState<'address' | 'payment' | 'razorpay_modal' | 'processing' | 'success'>('address');
   
@@ -807,7 +809,19 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
                 </div>
               </div>
 
-              <div className="pt-2">
+              <div className="pt-2 space-y-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveInvoiceOrder(createdOrder);
+                    onClose();
+                  }}
+                  className="inline-flex items-center justify-center gap-2 w-full bg-emerald-50 hover:bg-emerald-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-[#005723] dark:text-emerald-400 font-bold py-2.5 rounded-xl text-xs border border-emerald-200 dark:border-slate-700 transition-colors cursor-pointer shadow-xs"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>View & Print Bill / Invoice</span>
+                </button>
+
                 <a
                   href={`https://wa.me/919161772664?text=${encodeURIComponent(`Hello KF Mart, I placed Order ${createdOrder.id}. I have a query regarding delivery.`)}`}
                   target="_blank"
