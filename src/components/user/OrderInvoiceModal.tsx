@@ -237,15 +237,16 @@ export const OrderInvoiceModal: React.FC<OrderInvoiceModalProps> = ({ order, onC
                 <span>{isPrinting ? 'Printing...' : `Print ${printFormat === 'thermal58' ? '58mm Bill' : 'A4 Invoice'}`}</span>
               </button>
 
-              <button
-                type="button"
-                onClick={handleOpenNewTab}
-                className="px-2.5 py-1.5 bg-emerald-50 dark:bg-slate-800 hover:bg-emerald-100 dark:hover:bg-slate-700 text-[#005723] dark:text-emerald-400 text-xs font-bold rounded-xl flex items-center gap-1 border border-emerald-200 dark:border-slate-700 transition-all cursor-pointer"
+              <a
+                href={`/invoice/${encodeURIComponent(order.id)}?format=${printFormat}&print=1`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-2.5 py-1.5 bg-emerald-50 dark:bg-slate-800 hover:bg-emerald-100 dark:hover:bg-slate-700 text-[#005723] dark:text-emerald-400 text-xs font-bold rounded-xl flex items-center gap-1 border border-emerald-200 dark:border-slate-700 transition-all cursor-pointer no-underline"
                 title="Open in clean new browser tab for 100% reliable printing without iframe restrictions"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Open in</span> New Tab
-              </button>
+              </a>
             </div>
 
             {/* Secondary Actions: Download, WhatsApp, Copy */}

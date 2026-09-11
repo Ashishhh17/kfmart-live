@@ -445,6 +445,41 @@ app.post('/api/orders/update-status', async (req, res) => {
   res.json({ success: true, message: 'Order status updated globally' });
 });
 
+app.post('/api/orders/assign-delivery', async (req, res) => {
+  const { orderId, deliveryPartnerId, courierPartner } = req.body;
+  if (!orderId || !deliveryPartnerId) {
+    return res.status(400).json({ success: false, message: 'Order ID and Delivery Partner ID are required' });
+  }
+
+  let assignedOrder: any = null;
+  if (serverDb.orders) {
+    serverDb.orders = serverDb.orders.map(o => {
+      if (o.id === orderId) {
+        assignedOrder = {
+          ...o,
+          deliveryPartnerId,
+          courierPartner: courierPartner || o.courierPartner || 'KF Mart Express Rider'
+        };
+        return assignedOrder;
+      }
+      return o;
+    });
+    saveDatabase();
+  }
+
+  try {
+    const orderDocRef = doc(firestoreDb, 'orders', orderId);
+    await setDoc(orderDocRef, { 
+      deliveryPartnerId, 
+      courierPartner: courierPartner || (assignedOrder ? assignedOrder.courierPartner : 'KF Mart Express Rider')
+    }, { merge: true });
+  } catch (err) {
+    console.warn('Firestore assign delivery error:', err);
+  }
+
+  res.json({ success: true, message: 'Delivery partner assigned globally', order: assignedOrder });
+});
+
 app.post('/api/orders/cancel', async (req, res) => {
   const { orderId, reason } = req.body;
   if (!orderId) {
@@ -709,6 +744,225 @@ app.post('/api/payment/create-upi-intent', (req, res) => {
       }
     }
   });
+});
+
+// 9. Dedicated Invoice & Direct Print Route (100% reliable across browsers, mobile & POS)
+app.get(['/invoice/:orderId', '/api/invoice/:orderId'], async (req, res) => {
+  const { orderId } = req.params;
+  const format = req.query.format === 'standardA4' ? 'standardA4' : 'thermal58';
+  const autoPrint = req.query.print === '1' || req.query.print === 'true';
+
+  let order = serverDb.orders?.find(o => o.id === orderId);
+  if (!order) {
+    try {
+      const snap = await getDoc(doc(firestoreDb, 'orders', orderId));
+      if (snap.exists()) {
+        order = snap.data() as any;
+      }
+    } catch (e) {
+      console.warn('Firestore invoice fetch error:', e);
+    }
+  }
+
+  if (!order) {
+    return res.status(404).send(`
+      <!DOCTYPE html>
+      <html>
+      <head><title>Order Not Found - KF Mart</title><style>body{font-family:sans-serif;text-align:center;padding:50px;color:#334155;}</style></head>
+      <body>
+        <h2>Order #${orderId} Not Found</h2>
+        <p>This order could not be located in KF Mart database.</p>
+        <a href="/" style="display:inline-block;margin-top:20px;padding:10px 20px;background:#005723;color:#fff;text-decoration:none;border-radius:8px;">Back to KF Mart</a>
+      </body>
+      </html>
+    `);
+  }
+
+  const formattedDate = new Date(order.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  const formattedTime = new Date(order.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+
+  if (format === 'thermal58') {
+    const itemsRows = (order.items || []).map((item: any) => `
+      <div style="margin-top:3px;font-size:8px;">
+        <div style="font-weight:bold;font-size:8.5px;">${item.product?.name || 'Item'}${item.selectedSize ? ' (' + item.selectedSize + ')' : ''}</div>
+        <div style="display:flex;justify-content:space-between;font-size:7.5px;color:#475569;">
+          <span style="width:50%;">${item.product?.brand || 'KF Retail'}</span>
+          <span style="width:14%;text-align:center;">${item.quantity}</span>
+          <span style="width:18%;text-align:right;">₹${item.product?.sellingPrice || 0}</span>
+          <span style="width:18%;text-align:right;font-weight:bold;color:#000;">₹${(item.product?.sellingPrice || 0) * item.quantity}</span>
+        </div>
+      </div>
+    `).join('');
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KF-Mart-Receipt-${order.id}</title>
+  <style>
+    @page { size: 58mm auto; margin: 0; }
+    * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    body { margin: 0; padding: 0; background: #f1f5f9; font-family: "Courier New", Courier, monospace; color: #000; }
+    .bill-wrapper { width: 58mm; max-width: 58mm; min-width: 58mm; margin: 0 auto; padding: 3mm 2.5mm; background: #fff; font-size: 9px; line-height: 1.25; }
+    .text-center { text-align: center; }
+    .border-dashed { border-bottom: 1px dashed #000; padding-bottom: 4px; margin-bottom: 4px; }
+    .row { display: flex; justify-content: space-between; margin-bottom: 1px; }
+    .no-print-bar { position: sticky; top: 0; background: #005723; color: #fff; padding: 10px; text-align: center; font-family: sans-serif; font-size: 13px; z-index: 1000; }
+    .print-btn { background: #fff; color: #005723; border: none; padding: 6px 14px; font-weight: bold; border-radius: 6px; cursor: pointer; margin: 0 5px; font-size: 12px; }
+    @media print { body { background: #fff; } .no-print-bar { display: none !important; } .bill-wrapper { margin: 0 !important; padding: 2mm 2.5mm !important; } }
+  </style>
+</head>
+<body>
+  <div class="no-print-bar">
+    <span>KF Mart 58mm POS Thermal Bill</span>
+    <button class="print-btn" onclick="window.print()">🖨️ Print Slip</button>
+    <button class="print-btn" style="background:#e2e8f0;color:#334155;" onclick="window.close()">Close</button>
+  </div>
+  <div class="bill-wrapper">
+    <div class="text-center border-dashed">
+      <div style="font-size:13px;font-weight:900;letter-spacing:1px;">*** KF MART ***</div>
+      <div style="font-size:8.5px;font-weight:bold;">Lalgopalganj & Kunda Express</div>
+      <div style="font-size:7.5px;">Web: kfmart.in • Tel: +91 91617 72664</div>
+      <div style="font-size:8px;font-weight:900;text-transform:uppercase;margin-top:2px;">RETAIL CASH BILL / INVOICE</div>
+    </div>
+    <div class="border-dashed" style="font-size:8px;">
+      <div class="row"><span>BILL NO:</span><span style="font-weight:bold;">INV-${order.id.replace('ORD-', '')}</span></div>
+      <div class="row"><span>DATE:</span><span>${formattedDate} ${formattedTime}</span></div>
+      <div class="row"><span>CUSTOMER:</span><span style="font-weight:bold;">${order.customerName}</span></div>
+      <div class="row"><span>PHONE:</span><span>${order.customerPhone}</span></div>
+      <div style="font-size:7.5px;margin-top:1px;">ADDR: ${order.shippingAddress?.street}, ${order.shippingAddress?.city} (${order.shippingAddress?.pincode})</div>
+      <div class="row" style="font-weight:bold;margin-top:2px;"><span>PAY MODE:</span><span>${order.paymentMethod} (${order.paymentStatus})</span></div>
+      ${order.deliveryOTP ? `<div style="background:#000;color:#fff;padding:2px 4px;font-weight:bold;display:flex;justify-content:space-between;margin:3px 0;border-radius:2px;"><span>DELIVERY OTP:</span><span>${order.deliveryOTP}</span></div>` : ''}
+    </div>
+    <div class="border-dashed">
+      <div style="display:flex;font-weight:bold;border-bottom:1px solid #000;padding-bottom:2px;font-size:7.5px;">
+        <span style="width:50%;">ITEM</span>
+        <span style="width:14%;text-align:center;">QTY</span>
+        <span style="width:18%;text-align:right;">RATE</span>
+        <span style="width:18%;text-align:right;">AMT</span>
+      </div>
+      ${itemsRows}
+    </div>
+    <div class="border-dashed" style="font-size:8px;">
+      <div class="row"><span>SUBTOTAL:</span><span>₹${order.subtotal}</span></div>
+      ${order.discountAmount > 0 ? `<div class="row" style="color:#005723;font-weight:bold;"><span>DISCOUNT:</span><span>-₹${order.discountAmount}</span></div>` : ''}
+      <div class="row"><span>SHIPPING:</span><span>${order.shippingFee === 0 ? 'FREE' : '₹' + order.shippingFee}</span></div>
+      <div class="row" style="font-size:10px;font-weight:900;border-top:1px solid #000;padding-top:4px;margin-top:4px;">
+        <span>NET TOTAL:</span><span>₹${order.totalAmount}</span>
+      </div>
+    </div>
+    <div style="font-size:7px;text-align:center;line-height:1.2;margin-top:4px;">
+      <div style="font-family:monospace;letter-spacing:2px;background:#eee;padding:3px;font-weight:bold;margin:4px 0;font-size:8px;">||| ${order.shipmentTrackingNumber || order.id} |||</div>
+      <div style="font-weight:bold;font-size:8px;">*** THANK YOU FOR SHOPPING! ***</div>
+      <div>Easy 24-Hour Return / Exchange Available</div>
+      <div>WhatsApp Support: +91 91617 72664</div>
+      <div style="font-size:6.5px;color:#64748b;margin-top:2px;">Computer-generated slip • Valid without physical signature</div>
+    </div>
+  </div>
+  ${autoPrint ? `<script>window.addEventListener('load',function(){setTimeout(function(){window.focus();window.print();},300);});</script>` : ''}
+</body>
+</html>`;
+    return res.send(html);
+  }
+
+  // Standard A4
+  const a4Items = (order.items || []).map((item: any) => `
+    <tr>
+      <td style="padding:10px;border-bottom:1px solid #e2e8f0;">
+        <div style="font-weight:700;color:#0f172a;">${item.product?.name || 'Item'}${item.selectedSize ? ' (Size: ' + item.selectedSize + ')' : ''}</div>
+        <div style="font-size:10px;color:#64748b;">${item.product?.brand || 'KF Retail'} • ${item.product?.category || ''}</div>
+      </td>
+      <td style="padding:10px;border-bottom:1px solid #e2e8f0;text-align:center;font-weight:bold;">${item.quantity}</td>
+      <td style="padding:10px;border-bottom:1px solid #e2e8f0;text-align:right;">₹${item.product?.sellingPrice || 0}</td>
+      <td style="padding:10px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:800;">₹${(item.product?.sellingPrice || 0) * item.quantity}</td>
+    </tr>
+  `).join('');
+
+  const a4Html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KF-Mart-Tax-Invoice-${order.id}</title>
+  <style>
+    @page { size: A4; margin: 10mm; }
+    * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    body { margin: 0; padding: 0; background: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 12px; color: #1e293b; }
+    .invoice-card { max-width: 210mm; margin: 20px auto; padding: 20mm 15mm; background: #fff; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border-radius: 8px; }
+    .header-row { display: flex; justify-content: space-between; border-bottom: 2px solid #005723; padding-bottom: 15px; margin-bottom: 20px; }
+    .no-print-bar { position: sticky; top: 0; background: #005723; color: #fff; padding: 12px; text-align: center; font-size: 14px; z-index: 1000; }
+    .print-btn { background: #fff; color: #005723; border: none; padding: 7px 16px; font-weight: bold; border-radius: 6px; cursor: pointer; margin: 0 6px; font-size: 13px; }
+    @media print { body { background: #fff; } .no-print-bar { display: none !important; } .invoice-card { margin: 0 !important; padding: 0 !important; box-shadow: none !important; } }
+  </style>
+</head>
+<body>
+  <div class="no-print-bar">
+    <span>KF Mart Tax Invoice (A4 View)</span>
+    <button class="print-btn" onclick="window.print()">🖨️ Print / Save as PDF</button>
+    <button class="print-btn" style="background:#e2e8f0;color:#334155;" onclick="window.close()">Close</button>
+  </div>
+  <div class="invoice-card">
+    <div class="header-row">
+      <div>
+        <h1 style="font-size:22px;font-weight:900;color:#005723;margin:0;">KF MART</h1>
+        <div style="font-size:11px;font-weight:bold;color:#64748b;">KF Mart Retail Private Limited</div>
+        <div style="font-size:11px;color:#64748b;">Website: <strong>kfmart.in</strong> • Tel: +91 91617 72664</div>
+        <div style="font-size:11px;color:#64748b;">Lalgopalganj, Prayagraj / Pratapgarh, UP</div>
+      </div>
+      <div style="text-align:right;">
+        <span style="background:#005723;color:#fff;font-size:11px;font-weight:bold;padding:3px 10px;border-radius:4px;">TAX INVOICE</span>
+        <div style="font-weight:800;font-size:13px;margin-top:4px;">Invoice #: INV-${order.id}</div>
+        <div style="color:#64748b;font-size:11px;">Date: ${formattedDate}</div>
+        <div style="color:#005723;font-weight:bold;font-size:11px;margin-top:2px;">Status: ${(order.paymentStatus || '').toUpperCase()} (${order.paymentMethod})</div>
+        ${order.deliveryOTP ? `<div style="display:inline-block;background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;padding:2px 8px;border-radius:4px;font-weight:bold;font-size:11px;margin-top:4px;">Delivery OTP: ${order.deliveryOTP}</div>` : ''}
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;background:#f8fafc;padding:15px;border-radius:8px;border:1px solid #e2e8f0;margin-bottom:20px;">
+      <div>
+        <div style="font-size:10px;font-weight:bold;color:#94a3b8;text-transform:uppercase;">Billed & Shipped To:</div>
+        <div style="font-weight:bold;color:#0f172a;margin-top:4px;">${order.shippingAddress?.fullName}</div>
+        <div style="color:#334155;">${order.shippingAddress?.street}</div>
+        <div style="color:#334155;">${order.shippingAddress?.city}, ${order.shippingAddress?.state} - <strong>${order.shippingAddress?.pincode}</strong></div>
+        <div style="color:#334155;margin-top:2px;">Phone: <strong>${order.customerPhone}</strong></div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:10px;font-weight:bold;color:#94a3b8;text-transform:uppercase;">Dispatch & Logistics:</div>
+        <div style="color:#334155;margin-top:4px;">Order ID: <strong>#${order.id}</strong></div>
+        <div style="color:#334155;">Courier: <strong>${order.courierPartner || 'KF Express Logistics'}</strong></div>
+        <div style="color:#334155;">Tracking No: <strong>${order.shipmentTrackingNumber || order.id}</strong></div>
+        <div style="color:#334155;">Delivery Mode: <strong>${order.estimatedDeliveryTime || '24h Express'}</strong></div>
+      </div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+      <thead>
+        <tr style="background:#f1f5f9;color:#475569;font-size:11px;text-transform:uppercase;">
+          <th style="padding:10px;text-align:left;border-bottom:2px solid #cbd5e1;">Item Description</th>
+          <th style="padding:10px;text-align:center;width:60px;border-bottom:2px solid #cbd5e1;">Qty</th>
+          <th style="padding:10px;text-align:right;width:100px;border-bottom:2px solid #cbd5e1;">Unit Price</th>
+          <th style="padding:10px;text-align:right;width:110px;border-bottom:2px solid #cbd5e1;">Total</th>
+        </tr>
+      </thead>
+      <tbody>${a4Items}</tbody>
+    </table>
+    <div style="margin-left:auto;width:280px;">
+      <div style="display:flex;justify-content:space-between;padding:4px 0;color:#475569;"><span>Subtotal:</span><span style="font-weight:600;color:#0f172a;">₹${order.subtotal}</span></div>
+      ${order.discountAmount > 0 ? `<div style="display:flex;justify-content:space-between;padding:4px 0;color:#059669;font-weight:600;"><span>Promotional Discount:</span><span>-₹${order.discountAmount}</span></div>` : ''}
+      <div style="display:flex;justify-content:space-between;padding:4px 0;color:#475569;"><span>Express Delivery:</span><span>${order.shippingFee === 0 ? 'FREE' : '₹' + order.shippingFee}</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:15px;font-weight:900;color:#005723;border-top:2px solid #005723;padding-top:8px;margin-top:4px;">
+        <span>Grand Total:</span><span>₹${order.totalAmount}</span>
+      </div>
+    </div>
+    <div style="margin-top:30px;padding-top:15px;border-top:1px solid #e2e8f0;text-align:center;font-size:11px;color:#64748b;">
+      <div style="font-weight:bold;color:#334155;">KF Mart Retail • Customer Satisfaction Guaranteed</div>
+      <div>24-Hour Return & Exchange Policy Applies • WhatsApp Support: +91 91617 72664</div>
+      <div style="font-size:9.5px;color:#94a3b8;margin-top:4px;">This is a computer-generated tax invoice issued by KF Mart Retail Private Limited.</div>
+    </div>
+  </div>
+  ${autoPrint ? `<script>window.addEventListener('load',function(){setTimeout(function(){window.focus();window.print();},300);});</script>` : ''}
+</body>
+</html>`;
+  return res.send(a4Html);
 });
 
 // ==================== VITE MIDDLEWARE / STATIC ASSETS ====================

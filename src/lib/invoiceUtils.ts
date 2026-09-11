@@ -648,13 +648,17 @@ export const printInvoiceViaIframe = (order: Order, format: 'thermal58' | 'stand
  */
 export const openInvoiceInNewTab = (order: Order, format: 'thermal58' | 'standardA4'): void => {
   try {
-    const html = generateStandaloneInvoiceHtml(order, format, true);
-    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const newWin = window.open(url, '_blank');
+    const directUrl = `/invoice/${encodeURIComponent(order.id)}?format=${format}&print=1`;
+    const newWin = window.open(directUrl, '_blank');
     if (!newWin) {
-      // If browser blocked popup, download file instead
-      downloadInvoiceHtml(order, format);
+      // If browser blocked popup, try direct blob
+      const html = generateStandaloneInvoiceHtml(order, format, true);
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const blobWin = window.open(url, '_blank');
+      if (!blobWin) {
+        downloadInvoiceHtml(order, format);
+      }
     }
   } catch (e) {
     console.warn('Failed to open invoice in new tab, falling back to download:', e);

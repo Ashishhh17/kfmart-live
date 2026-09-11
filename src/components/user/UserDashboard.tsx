@@ -244,6 +244,30 @@ export const UserDashboard: React.FC = () => {
                         ))}
                       </div>
 
+                      {/* Customer Delivery Confirmation OTP Card */}
+                      {order.deliveryOTP && order.status !== 'Delivered' && order.status !== 'Cancelled' && (
+                        <div className="p-3.5 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl flex flex-wrap items-center justify-between gap-3">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-xl bg-[#005723] text-white flex items-center justify-center shrink-0 shadow-xs">
+                              <KeyRound className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <span className="text-xs font-black text-slate-900 dark:text-white">
+                                Doorstep Delivery Confirmation OTP:
+                              </span>
+                              <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                                Share this confidential code with delivery agent when parcel arrives.
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-base font-black font-mono tracking-widest text-[#005723] dark:text-emerald-300 bg-white dark:bg-slate-900 px-3.5 py-1.5 rounded-xl border border-emerald-300 dark:border-emerald-700 shadow-xs">
+                              {order.deliveryOTP}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Active Order Cancellation Button */}
                       {order.status !== 'Delivered' && order.status !== 'Cancelled' && (
                         <div className="flex items-center justify-between p-3.5 bg-red-50/70 dark:bg-red-950/20 rounded-2xl border border-red-200/80 dark:border-red-900/40">

@@ -141,6 +141,10 @@ interface StoreContextType {
   setIsAuthModalOpen: (open: boolean) => void;
   approveAllVendors: () => void;
 
+  // Session & Authentication Persistence
+  session: { identifier: string; timestamp: number; role: Role } | null;
+  logout: () => void;
+
   // Password Security & Management
   changePassword: (userIdOrRole: string, oldPass: string, newPass: string, role?: Role) => Promise<{ success: boolean; message: string }>;
   verifyPassword: (userIdOrRole: string, enteredPass: string, role?: Role) => boolean;
@@ -155,15 +159,64 @@ interface StoreContextType {
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [activeRole, setActiveRole] = useState<Role>('customer');
-  const [currentVendor, setCurrentVendor] = useState<Vendor | null>(INITIAL_VENDORS[0]);
+  // 1. Session Persistence across page refresh
+  const [session, setSession] = useState<{ identifier: string; timestamp: number; role: Role } | null>(() => {
+    try {
+      const saved = localStorage.getItem('kfmart_session');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  // 2. Active Role Persistence across page refresh (does not reset on refresh!)
+  const [activeRole, setActiveRoleState] = useState<Role>(() => {
+    const savedRole = localStorage.getItem('kfmart_active_role') as Role;
+    if (savedRole && ['customer', 'vendor', 'admin', 'delivery'].includes(savedRole)) {
+      return savedRole;
+    }
+    const savedSession = localStorage.getItem('kfmart_session');
+    if (savedSession) {
+      try {
+        const s = JSON.parse(savedSession);
+        if (s.role && ['customer', 'vendor', 'admin', 'delivery'].includes(s.role)) {
+          return s.role;
+        }
+      } catch {}
+    }
+    return 'customer';
+  });
+
+  const setActiveRole = (role: Role) => {
+    setActiveRoleState(role);
+    localStorage.setItem('kfmart_active_role', role);
+  };
+
+  // 3. Current Vendor Persistence across page refresh
+  const [currentVendor, setCurrentVendorState] = useState<Vendor | null>(() => {
+    const savedVendorId = localStorage.getItem('kfmart_current_vendor_id');
+    if (savedVendorId) {
+      const found = INITIAL_VENDORS.find(v => v.id === savedVendorId);
+      if (found) return found;
+    }
+    return INITIAL_VENDORS[0];
+  });
+
+  const setCurrentVendor = (v: Vendor | null) => {
+    setCurrentVendorState(v);
+    if (v) {
+      localStorage.setItem('kfmart_current_vendor_id', v.id);
+    } else {
+      localStorage.removeItem('kfmart_current_vendor_id');
+    }
+  };
+
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [pincode, setPincode] = useState<string>('229413');
   const [pincodeError, setPincodeError] = useState<string | null>(null);
 
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
-
   const [vendors, setVendors] = useState<Vendor[]>(INITIAL_VENDORS);
 
   const [cart, setCart] = useState<CartItem[]>(() => {
@@ -178,11 +231,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
 
-  const [session, setSession] = useState<{ identifier: string; timestamp: number; role: Role } | null>(() => {
-    const saved = localStorage.getItem('kfmart_session');
-    return saved ? JSON.parse(saved) : null;
-  });
-
   useEffect(() => {
     if (session) {
       localStorage.setItem('kfmart_session', JSON.stringify(session));
@@ -190,6 +238,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       localStorage.removeItem('kfmart_session');
     }
   }, [session]);
+
+  const logout = () => {
+    setSession(null);
+    localStorage.removeItem('kfmart_session');
+    localStorage.removeItem('kfmart_active_role');
+    localStorage.removeItem('kfmart_current_vendor_id');
+    setActiveRoleState('customer');
+    setCurrentVendorState(INITIAL_VENDORS[0]);
+  };
 
   const [orders, setOrders] = useState<Order[]>([]);
 
@@ -350,7 +407,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           setSession(currentSession => {
             if (currentSession) {
               const changedAt = data.accountPasswordChangedAt[currentSession.identifier] || 0;
-              if (changedAt > currentSession.timestamp) {
+              // Only expire if password was changed strictly AFTER the session was established with 15-second grace window
+              if (changedAt > (currentSession.timestamp + 15000) && currentSession.timestamp > 0 && changedAt > 0) {
                 setTimeout(() => {
                   setActiveRole('customer');
                   setCurrentVendor(null);
@@ -559,11 +617,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
 
       if (res.ok && json.valid) {
-        setSession({
-          identifier: userIdOrRole.trim().toLowerCase() || role,
+        const cleanId = userIdOrRole.trim().toLowerCase() || role;
+        const newSession = {
+          identifier: cleanId,
           timestamp: json.authTimestamp || Date.now(),
           role: role
-        });
+        };
+        setSession(newSession);
+        localStorage.setItem('kfmart_session', JSON.stringify(newSession));
+        localStorage.setItem('kfmart_active_role', role);
+        setActiveRoleState(role);
         return { success: true, message: 'Authentication successful' };
       } else {
         return { 
@@ -575,6 +638,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // Local fallback in case of network issue
       const localValid = verifyPassword(userIdOrRole, enteredPass, role);
       if (localValid) {
+        const cleanId = userIdOrRole.trim().toLowerCase() || role;
+        const newSession = {
+          identifier: cleanId,
+          timestamp: Date.now(),
+          role: role
+        };
+        setSession(newSession);
+        localStorage.setItem('kfmart_session', JSON.stringify(newSession));
+        localStorage.setItem('kfmart_active_role', role);
+        setActiveRoleState(role);
         return { success: true };
       } else {
         return { 
@@ -1533,9 +1606,38 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // Delivery Executive assignment
-  const assignDeliveryExecutive = (orderId: string, execId: string) => {
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, deliveryPartnerId: execId } : o));
-    const exec = deliveryExecutives.find(d => d.id === execId);
+  const assignDeliveryExecutive = async (orderId: string, execId: string) => {
+    const exec = deliveryExecutives.find(d => d.id === execId || d.phone === execId);
+    const courierName = exec ? `${exec.name} (${exec.phone})` : (execId || 'KF Mart Express Rider');
+
+    // 1. Immediately update React state
+    setOrders(prev => prev.map(o => o.id === orderId ? { 
+      ...o, 
+      deliveryPartnerId: execId,
+      courierPartner: courierName
+    } : o));
+
+    // 2. Persist to real-time Firestore database
+    try {
+      await updateOrderInFirestore(orderId, {
+        deliveryPartnerId: execId,
+        courierPartner: courierName
+      });
+    } catch (e) {
+      console.warn('Firestore assign delivery error:', e);
+    }
+
+    // 3. Persist to server API
+    fetch('/api/orders/assign-delivery', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        orderId, 
+        deliveryPartnerId: execId, 
+        courierPartner: courierName 
+      })
+    }).catch(err => console.warn('Server assign delivery error:', err));
+
     if (exec) {
       addNotification('Delivery Agent Assigned', `Order #${orderId} assigned to agent ${exec.name} (${exec.phone}).`, 'delivery');
     }
@@ -1548,6 +1650,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setActiveRole,
         currentVendor,
         setCurrentVendor,
+        session,
+        logout,
         selectedCategory,
         setSelectedCategory,
         searchQuery,

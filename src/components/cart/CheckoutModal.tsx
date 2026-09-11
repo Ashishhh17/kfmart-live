@@ -35,13 +35,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
   
   const [step, setStep] = useState<'address' | 'payment' | 'razorpay_modal' | 'processing' | 'success'>('address');
   
-  // Shipping form state
-  const [fullName, setFullName] = useState('Ashish Sharma');
-  const [phone, setPhone] = useState('+91 91617 72664');
-  const [email, setEmail] = useState('ashish078775@gmail.com');
-  const [inputPincode, setInputPincode] = useState(pincode);
-  const [street, setStreet] = useState('Flat 402, Royal Residency, Main Market Road');
-  const [city, setCity] = useState('Rae Bareli');
+  // Shipping form state - starts completely blank as requested
+  const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [inputPincode, setInputPincode] = useState(pincode || '229413');
+  const [street, setStreet] = useState('');
+  const [city, setCity] = useState('');
   const [state, setState] = useState('Uttar Pradesh');
   const [pincodeValidError, setPincodeValidError] = useState<string | null>(null);
 
@@ -224,20 +224,22 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">Full Name</label>
+                  <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">Full Name *</label>
                   <input
                     type="text"
                     required
+                    placeholder="Enter your full name"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">Mobile Number</label>
+                  <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">Mobile Number *</label>
                   <input
                     type="text"
                     required
+                    placeholder="10-digit mobile number"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
@@ -246,10 +248,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
               </div>
 
               <div>
-                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">Email Address</label>
+                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">Email Address *</label>
                 <input
                   type="email"
                   required
+                  placeholder="name@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
@@ -257,10 +260,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
               </div>
 
               <div>
-                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">Street Address / House / Colony</label>
+                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">Street Address / House / Colony *</label>
                 <input
                   type="text"
                   required
+                  placeholder="House / Flat No., Landmark, Street Address"
                   value={street}
                   onChange={(e) => setStreet(e.target.value)}
                   className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
@@ -269,20 +273,22 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">City</label>
+                  <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">City *</label>
                   <input
                     type="text"
                     required
+                    placeholder="City / Town (e.g. Lalgopalganj / Kunda)"
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
                     className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">State</label>
+                  <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">State *</label>
                   <input
                     type="text"
                     required
+                    placeholder="State"
                     value={state}
                     onChange={(e) => setState(e.target.value)}
                     className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
@@ -294,6 +300,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
                     type="text"
                     required
                     maxLength={6}
+                    placeholder="229413 or 230201"
                     value={inputPincode}
                     onChange={(e) => setInputPincode(e.target.value)}
                     className="w-full px-3 py-2 text-xs rounded-xl border border-amber-400 font-bold dark:bg-slate-800 dark:text-white"
