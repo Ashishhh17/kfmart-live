@@ -594,7 +594,11 @@ export const AdminDashboard: React.FC = () => {
                 className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-2 flex flex-col justify-between"
               >
                 <div>
-                  <img src={product.images[0]} alt={product.name} className="w-full h-32 object-cover rounded-xl mb-2" />
+                  <img 
+                    src={product?.images?.[0] || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500&auto=format&fit=crop&q=60'} 
+                    alt={product.name || 'Product'} 
+                    className="w-full h-32 object-cover rounded-xl mb-2 bg-slate-100" 
+                  />
                   <span className="text-[10px] font-bold uppercase bg-amber-500/10 text-[#F97316] px-2 py-0.5 rounded">
                     {product.category}
                   </span>

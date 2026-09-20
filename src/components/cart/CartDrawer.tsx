@@ -102,9 +102,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onProceedToCheckout }) =
                 className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 flex gap-3"
               >
                 <img 
-                  src={item.product.images[0]} 
-                  alt={item.product.name} 
-                  className="w-16 h-20 rounded-xl object-cover"
+                  src={item.product?.images?.[0] || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500&auto=format&fit=crop&q=60'} 
+                  alt={item.product?.name || 'Cart item'} 
+                  className="w-16 h-20 rounded-xl object-cover bg-slate-100"
                 />
 
                 <div className="flex-1 min-w-0 flex flex-col justify-between">

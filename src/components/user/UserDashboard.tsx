@@ -231,13 +231,17 @@ export const UserDashboard: React.FC = () => {
                       <div className="space-y-2">
                         {order.items.map((item, idx) => (
                           <div key={idx} className="flex items-center gap-3">
-                            <img src={item.product.images[0]} alt="" className="w-12 h-14 rounded-xl object-cover" />
+                            <img 
+                              src={item?.product?.images?.[0] || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500&auto=format&fit=crop&q=60'} 
+                              alt="" 
+                              className="w-12 h-14 rounded-xl object-cover bg-slate-100" 
+                            />
                             <div className="flex-1 min-w-0">
-                              <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate">{item.product.name}</h4>
+                              <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate">{item?.product?.name || 'Item'}</h4>
                               <p className="text-[10px] text-slate-400">
                                 Qty: {item.quantity} 
                                 {item.selectedSize && <span className="ml-1 text-slate-700 dark:text-slate-300 font-bold bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded text-[9px]">Size: {item.selectedSize}</span>}
-                                • ₹{item.product.sellingPrice}
+                                • ₹{item?.product?.sellingPrice ?? 0}
                               </p>
                             </div>
                           </div>
@@ -466,7 +470,11 @@ export const UserDashboard: React.FC = () => {
                     <div key={product.id} className="bg-white dark:bg-slate-800 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 flex flex-col justify-between space-y-3">
                       <div>
                         <div className="relative mb-2">
-                          <img src={product.images[0]} alt={product.name} className="w-full h-36 object-cover rounded-xl" />
+                          <img 
+                            src={product?.images?.[0] || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500&auto=format&fit=crop&q=60'} 
+                            alt={product.name || 'Wishlist item'} 
+                            className="w-full h-36 object-cover rounded-xl bg-slate-100" 
+                          />
                           <button
                             onClick={() => toggleWishlist(product)}
                             className="absolute top-2 right-2 p-1.5 bg-white/90 dark:bg-slate-900/90 hover:bg-red-50 text-red-500 rounded-xl shadow-xs transition-colors"

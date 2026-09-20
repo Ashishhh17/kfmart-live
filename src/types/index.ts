@@ -50,7 +50,7 @@ export interface Product {
   isBestSeller?: boolean;
   isTrending?: boolean;
   isRecommended?: boolean;
-  discountPercentage: number;
+  discountPercentage?: number;
   pincodeAvailability: string[]; // default ['229413']
   estimatedDeliveryTime?: string; // Vendor specified delivery duration (e.g. '24 Hours Express', '1-2 Days')
   availableSizes?: string[]; // e.g. ['S', 'M', 'L', 'XL', 'XXL'] for garments/fashion
@@ -106,6 +106,7 @@ export interface Order {
   paymentMethod: 'Razorpay' | 'COD' | 'UPI' | 'Wallet';
   paymentStatus: 'Paid' | 'Pending' | 'Refunded';
   utrNumber?: string;
+  transactionReference?: string;
   deliveryOTP: string;
   deliveryPartnerId?: string;
   
@@ -143,8 +144,8 @@ export interface Vendor {
   email: string;
   gstNumber?: string;
   panNumber?: string;
-  aadhaarNumber: string;
-  bankDetails: {
+  aadhaarNumber?: string;
+  bankDetails?: {
     accountNumber: string;
     ifscCode: string;
     bankName: string;

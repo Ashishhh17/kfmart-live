@@ -22,8 +22,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onOpenDetails
         onClick={() => onOpenDetails(product)}
       >
         <img 
-          src={product.images[0]} 
-          alt={product.name} 
+          src={product.images?.[0] || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500&auto=format&fit=crop&q=60'} 
+          alt={product.name || 'Product'} 
           className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105"
         />
 

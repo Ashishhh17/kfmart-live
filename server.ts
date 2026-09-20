@@ -257,6 +257,10 @@ app.post('/api/sync', (req, res) => {
 });
 
 // 4. Products APIs
+app.get('/api/products', (req, res) => {
+  res.json({ success: true, products: serverDb.products || [] });
+});
+
 app.post('/api/products/add', (req, res) => {
   const newProduct = req.body;
   if (!newProduct || !newProduct.name) {

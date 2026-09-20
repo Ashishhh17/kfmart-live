@@ -12,20 +12,49 @@
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>KF MART Retail | kfmart.in</title>
-    <!-- Razorpay Checkout SDK -->
-    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+
+    <!-- Prevent Service Worker Glitches & Clear Stale Caches -->
     <script>
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then(reg => console.log('KF MART Service Worker registered:', reg.scope))
-            .catch(err => console.log('KF MART Service Worker registration failed:', err));
-        });
+        navigator.serviceWorker.getRegistrations().then(function(regs) {
+          for (var r of regs) { r.unregister(); }
+        }).catch(function() {});
+      }
+      if ('caches' in window) {
+        caches.keys().then(function(keys) {
+          for (var k of keys) { caches.delete(k); }
+        }).catch(function() {});
       }
     </script>
+
+    <!-- Razorpay Checkout SDK (Asynchronous, Non-blocking) -->
+    <script src="https://checkout.razorpay.com/v1/checkout.js" async defer></script>
+  </head>
+  <body class="bg-[#F8FAFC] text-slate-900 m-0 p-0">
+    <div id="root">
+      <!-- Instant Pre-React Branded Placeholder (Replaced as soon as React hydrates) -->
+      <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f8fafc;font-family:sans-serif;color:#0f172a;text-align:center;padding:20px;">
+        <div style="width:64px;height:64px;border-radius:18px;background:#005723;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 25px rgba(0,87,35,0.25);margin-bottom:16px;">
+          <svg width="36" height="36" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="100" height="100" rx="22" fill="#005723" />
+            <path d="M38 32 C38 18, 62 18, 62 32" stroke="#FFB800" stroke-width="6" stroke-linecap="round" fill="none" />
+            <path d="M22 32 H78 L74 86 C74 88, 72 90, 70 90 H30 C28 90, 26 88, 26 86 L22 32 Z" fill="#00481D" />
+            <text x="35" y="70" fill="#FFFFFF" font-size="32" font-weight="900" font-style="italic" font-family="sans-serif">K</text>
+            <text x="54" y="70" fill="#FFB800" font-size="32" font-weight="900" font-style="italic" font-family="sans-serif">F</text>
+          </svg>
+        </div>
+        <h2 style="margin:0 0 6px;font-size:20px;font-weight:900;color:#005723;letter-spacing:-0.5px;">KF MART RETAIL</h2>
+        <p style="margin:0;font-size:12px;color:#64748b;font-weight:600;">Har Dukaan, Ek Platform • Express Delivery</p>
+        <div style="margin-top:20px;display:flex;gap:6px;">
+          <span style="width:8px;height:8px;border-radius:50%;background:#005723;display:inline-block;animation:pulse 1s infinite alternate;"></span>
+          <span style="width:8px;height:8px;border-radius:50%;background:#FFB800;display:inline-block;animation:pulse 1s 0.3s infinite alternate;"></span>
+          <span style="width:8px;height:8px;border-radius:50%;background:#005723;display:inline-block;animation:pulse 1s 0.6s infinite alternate;"></span>
+        </div>
+        <style>
+          @keyframes pulse { 0% { transform: scale(0.8); opacity: 0.5; } 100% { transform: scale(1.3); opacity: 1; } }
+        </style>
+      </div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

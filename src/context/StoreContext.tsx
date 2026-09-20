@@ -220,13 +220,21 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [vendors, setVendors] = useState<Vendor[]>(INITIAL_VENDORS);
 
   const [cart, setCart] = useState<CartItem[]>(() => {
-    const saved = localStorage.getItem('kfmart_cart');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('kfmart_cart');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
   });
 
   const [wishlist, setWishlist] = useState<Product[]>(() => {
-    const saved = localStorage.getItem('kfmart_wishlist');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('kfmart_wishlist');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
   });
 
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
@@ -1688,6 +1696,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         requestReturn,
         requestExchange,
         getReturnWindowStatus,
+        resetOrdersToZero,
 
         vendors,
         registerVendor,
